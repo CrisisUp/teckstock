@@ -23,8 +23,7 @@ APP_DIR="/opt/techstock"
 SECRET_NAME="techstock/backend"
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SEÇÃO 1.5 — VALIDAÇÃO DO SECRETS MANAGER
-# Se o secret já existir, pergunta se quer reutilizar os valores.
+# SEÇÃO 2 — ENTRADA INTERATIVA DE DADOS
 # ══════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "============================================"
@@ -32,64 +31,6 @@ echo " TechStock — Setup Backend"
 echo " $(date)"
 echo "============================================"
 echo ""
-
-echo "Região AWS (ex: us-east-1, us-west-2, sa-east-1):"
-read -p "  → " AWS_REGION_INPUT
-AWS_REGION_INPUT="${AWS_REGION_INPUT// /}"
-if [[ -z "$AWS_REGION_INPUT" ]]; then
-  echo "  ✗ Obrigatório."
-  read -p "  → " AWS_REGION_INPUT
-  AWS_REGION_INPUT="${AWS_REGION_INPUT// /}"
-fi
-AWS_REGION="$AWS_REGION_INPUT"
-echo "  ✓ AWS_REGION: $AWS_REGION"
-echo ""
-
-# Verifica se o secret já existe no Secrets Manager
-echo "Verificando secret '$SECRET_NAME' no Secrets Manager..."
-EXISTING_SECRET=$(aws secretsmanager get-secret-value \
-  --secret-id "$SECRET_NAME" \
-  --region "$AWS_REGION" \
-  --query SecretString \
-  --output text 2>/dev/null)
-
-if [[ -n "$EXISTING_SECRET" ]]; then
-  echo "  ✓ Secret encontrado! Valores atuais:"
-  echo "$EXISTING_SECRET" | python3 -c 'import sys,json; d=json.load(sys.stdin); [print("    {} = {}".format(k,"(oculto)" if "PASSWORD" in k or "SECRET" in k else v)) for k,v in d.items()]'
-  echo ""
-  read -p "Reutilizar estes valores e pular configuração interativa? (s/N): " REUSE
-  if [[ "$REUSE" =~ ^[Ss]$ ]]; then
-    # Carrega variáveis do secret existente
-    eval $(echo "$EXISTING_SECRET" | python3 -c 'import sys,json; d=json.load(sys.stdin); [print(f"export {k}=\"{v}\"") for k,v in d.items()]')
-    CORS_ORIGIN="$CORS_ORIGIN"
-    DB_HOST="$DB_HOST"
-    DB_PASSWORD="$DB_PASSWORD"
-    AWS_REGION="${AWS_REGION}"
-    echo "  ✓ Variáveis carregadas do Secrets Manager"
-    echo ""
-    echo "URL base do repositório GitHub (raw):"
-    echo "  Exemplo: https://raw.githubusercontent.com/SEU_USER/SEU_REPO/main"
-    read -p "  → " GITHUB_RAW
-    GITHUB_RAW="${GITHUB_RAW// /}"
-    GITHUB_RAW="${GITHUB_RAW%/}"
-    if [[ -n "$GITHUB_RAW" ]]; then
-      echo "  Subdiretório do backend no repo (Enter se raiz):"
-      read -p "  → " GITHUB_SUBDIR
-      GITHUB_SUBDIR="${GITHUB_SUBDIR// /}"
-      GITHUB_SUBDIR="${GITHUB_SUBDIR%/}"
-      [[ -n "$GITHUB_SUBDIR" ]] && GITHUB_BASE="${GITHUB_RAW}/${GITHUB_SUBDIR}" || GITHUB_BASE="$GITHUB_RAW"
-    else
-      GITHUB_BASE=""
-    fi
-    SKIP_INTERACTIVE=true
-  fi
-fi
-
-
-if [[ "$SKIP_INTERACTIVE" != "true" ]]; then
-# ══════════════════════════════════════════════════════════════════════════════
-# SEÇÃO 2 — ENTRADA INTERATIVA DE DADOS
-# ══════════════════════════════════════════════════════════════════════════════
 
 # Região AWS
 echo "Região AWS (ex: us-east-1, us-west-2, sa-east-1):"
@@ -193,7 +134,6 @@ echo "--------------------------------------------"
 echo ""
 read -p "Confirma e inicia a instalação? (s/N): " CONFIRM
 [[ "$CONFIRM" =~ ^[Ss]$ ]] || { echo "Cancelado."; exit 0; }
-fi # fim SKIP_INTERACTIVE
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SEÇÃO 3 — Sistema
@@ -328,6 +268,7 @@ echo ""
 echo "--- [5/8] Instalando dependências Node.js ---"
 cd $APP_DIR
 npm install
+# Garante todos os módulos críticos mesmo que não estejam no package.json
 npm install express dotenv pg cors helmet prom-client express-async-errors @aws-sdk/client-secrets-manager
 echo "Pacotes instalados: $(ls node_modules | wc -l)"
 
@@ -451,7 +392,7 @@ NE
 
 dnf install -y amazon-cloudwatch-agent
 
-cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << CW
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CW'
 {
   "logs": {
     "logs_collected": {
