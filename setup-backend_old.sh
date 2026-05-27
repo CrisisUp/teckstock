@@ -267,9 +267,7 @@ echo "Arquivos OK: $(ls $APP_DIR/*.js $APP_DIR/package.json 2>/dev/null | tr '\n
 echo ""
 echo "--- [5/8] Instalando dependências Node.js ---"
 cd $APP_DIR
-npm install
-# Garante módulos críticos mesmo que não estejam no package.json
-npm install express-async-errors @aws-sdk/client-secrets-manager
+npm install --omit=dev
 echo "Pacotes instalados: $(ls node_modules | wc -l)"
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -392,16 +390,16 @@ NE
 
 dnf install -y amazon-cloudwatch-agent
 
-cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CW'
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << CW
 {
   "logs": {
     "logs_collected": {
-      "files": {
+      "systemd": {
         "collect_list": [
           {
-            "file_path": "/var/log/messages",
             "log_group_name": "/techstock/app",
-            "log_stream_name": "{instance_id}"
+            "log_stream_name": "{instance_id}",
+            "log_system_journal_id": "techstock"
           }
         ]
       }
