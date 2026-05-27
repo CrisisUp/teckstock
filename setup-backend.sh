@@ -319,7 +319,7 @@ NE
 
 dnf install -y amazon-cloudwatch-agent
 
-REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region 2>/dev/null || echo "us-east-1")
+REGION=${REGION}  # Usando a região definida pelo usuário
 cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << CW
 {
   "logs": {
