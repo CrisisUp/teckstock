@@ -41,6 +41,19 @@ echo "  ✓ ALB_DNS: $ALB_DNS"
 echo "  ✓ API_URL: http://$ALB_DNS"
 echo ""
 
+# Região AWS — obrigatório
+echo "Região AWS (ex: us-east-1, us-west-2, sa-east-1):"
+read -p "  → " AWS_REGION_INPUT
+AWS_REGION_INPUT="${AWS_REGION_INPUT// /}"
+if [[ -z "$AWS_REGION_INPUT" ]]; then
+  echo "  ✗ Obrigatório. Use o formato: us-east-1"
+  read -p "  → " AWS_REGION_INPUT
+  AWS_REGION_INPUT="${AWS_REGION_INPUT// /}"
+fi
+AWS_REGION="$AWS_REGION_INPUT"
+echo "  ✓ AWS_REGION: $AWS_REGION"
+echo ""
+
 # GitHub — URL base do repositório
 echo "URL base do repositório GitHub (raw):"
 echo "  Exemplo: https://raw.githubusercontent.com/SEU_USER/SEU_REPO/main"
@@ -68,6 +81,7 @@ echo "--------------------------------------------"
 echo " Resumo da configuração:"
 echo "   ALB_DNS   = $ALB_DNS"
 echo "   API_URL   = http://$ALB_DNS"
+   echo "   AWS_REGION = $AWS_REGION"
 echo "   GITHUB    = ${GITHUB_BASE:-'(upload manual)'}"
 echo "   WEBROOT   = $WEBROOT"
 echo "--------------------------------------------"

@@ -69,6 +69,40 @@ read -p "  → " INPUT_PASS
 echo "  ✓ Senha: $GRAFANA_PASSWORD"
 echo ""
 
+# Região AWS — obrigatório
+echo "Região AWS (ex: us-east-1, us-west-2, sa-east-1):"
+read -p "  → " AWS_REGION_INPUT
+AWS_REGION_INPUT="${AWS_REGION_INPUT// /}"
+if [[ -z "$AWS_REGION_INPUT" ]]; then
+  echo "  ✗ Obrigatório. Use o formato: us-east-1"
+  read -p "  → " AWS_REGION_INPUT
+  AWS_REGION_INPUT="${AWS_REGION_INPUT// /}"
+fi
+AWS_REGION="$AWS_REGION_INPUT"
+echo "  ✓ AWS_REGION: $AWS_REGION"
+echo ""
+
+# GitHub — URL dos dashboards TechStock
+echo "URL base do repositório GitHub (raw) com os dashboards TechStock:"
+echo "  Exemplo: https://raw.githubusercontent.com/SEU_USER/SEU_REPO/main"
+echo "  (Enter para pular — importe manualmente depois)"
+read -p "  → " GITHUB_RAW
+GITHUB_RAW="${GITHUB_RAW// /}"
+GITHUB_RAW="${GITHUB_RAW%/}"
+if [[ -n "$GITHUB_RAW" ]]; then
+  echo "  Subdiretório dos dashboards no repo (Enter se estiver na raiz):"
+  echo "  Exemplo: dashboards  ou  monitoring/dashboards"
+  read -p "  → " GITHUB_SUBDIR
+  GITHUB_SUBDIR="${GITHUB_SUBDIR// /}"
+  GITHUB_SUBDIR="${GITHUB_SUBDIR%/}"
+  [[ -n "$GITHUB_SUBDIR" ]] && GITHUB_BASE="${GITHUB_RAW}/${GITHUB_SUBDIR}" || GITHUB_BASE="$GITHUB_RAW"
+  echo "  ✓ URL dashboards: $GITHUB_BASE"
+else
+  GITHUB_BASE=""
+  echo "  ⚠ Pulado — dashboards da comunidade serão importados automaticamente"
+fi
+echo ""
+
 # Confirmação final
 echo "--------------------------------------------"
 echo " Resumo da configuração:"
@@ -77,6 +111,8 @@ echo "   Backend IP = ${BACKEND_PRIVATE_IP:-'(configurar depois)'}"
 echo "   Grafana    = admin / $GRAFANA_PASSWORD"
 echo "   Prometheus = v$PROMETHEUS_VERSION"
 echo "   NodeExp    = v$NODE_EXPORTER_VERSION"
+   echo "   AWS_REGION = $AWS_REGION"
+   echo "   GITHUB     = ${GITHUB_BASE:-'(importação manual)'}"
 echo "--------------------------------------------"
 echo ""
 read -p "Confirma e inicia a instalação? (s/N): " CONFIRM
@@ -509,6 +545,80 @@ for d in (gf("GET", "/api/search?type=dash-db") or []):
     if isinstance(d, dict):
         print(f"  ✓ {d.get('title','?')} → /grafana/d/{d.get('uid','')}")
 PYEOF
+
+# ── Dashboards TechStock (GitHub) ────────────────────────────────────────────
+echo ""
+echo "--- Importando dashboards TechStock do GitHub ---"
+
+if [[ -n "$GITHUB_BASE" ]]; then
+  DASH_DIR="/tmp/techstock-dashboards"
+  mkdir -p $DASH_DIR
+
+  for dash in \
+    dashboard_techstock-observability.json \
+    dashboard_techstock-infra-ec2.json \
+    dashboard_techstock-api.json \
+    dashboard_techstock-rds.json \
+    dashboard_techstock-devops.json; do
+
+    echo "  baixando $dash..."
+    if wget -q -O $DASH_DIR/$dash "$GITHUB_BASE/$dash"; then
+      echo "  ✓ $dash"
+    else
+      echo "  ✗ $dash — não encontrado em $GITHUB_BASE/$dash"
+    fi
+  done
+
+  echo ""
+  echo "  Importando via API do Grafana..."
+  sleep 3
+
+  python3 << DASHEOF
+import urllib.request, urllib.error, json, sys, base64, os, glob
+
+GRAFANA = "http://localhost:3000/grafana"
+USER    = "admin"
+PASS    = "${GRAFANA_PASSWORD}"
+
+def gf(method, path, data=None):
+    url = GRAFANA + path
+    req = urllib.request.Request(url, method=method)
+    creds = base64.b64encode(f"{USER}:{PASS}".encode()).decode()
+    req.add_header("Authorization", f"Basic {creds}")
+    req.add_header("Content-Type", "application/json")
+    body = json.dumps(data).encode() if data else None
+    try:
+        with urllib.request.urlopen(req, body, timeout=20) as r:
+            return json.loads(r.read())
+    except Exception as e:
+        return {"error": str(e)}
+
+dash_dir = "/tmp/techstock-dashboards"
+files = glob.glob(f"{dash_dir}/dashboard_techstock-*.json")
+files.sort()
+
+for fpath in files:
+    fname = os.path.basename(fpath)
+    try:
+        with open(fpath) as f:
+            payload = json.load(f)
+        result = gf("POST", "/api/dashboards/db", payload)
+        if result.get("status") == "success":
+            print(f"  OK -> /grafana/d/{result.get('uid','?')} ({fname})")
+        else:
+            print(f"  Erro em {fname}: {result.get('message', result)}")
+    except Exception as e:
+        print(f"  Falha em {fname}: {e}")
+DASHEOF
+
+else
+  echo "  ⚠ GITHUB_BASE não definido — importe os dashboards manualmente:"
+  echo "    1. Copie os JSONs para o EC2 Monitoring"
+  echo "    2. Execute para cada arquivo:"
+  echo "       curl -X POST http://localhost:3000/grafana/api/dashboards/db \\"
+  echo "         -u admin:${GRAFANA_PASSWORD} -H Content-Type:application/json \\"
+  echo "         -d @dashboard_techstock-XXX.json"
+fi
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CloudWatch Agent
