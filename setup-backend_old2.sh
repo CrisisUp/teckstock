@@ -268,8 +268,8 @@ echo ""
 echo "--- [5/8] Instalando dependências Node.js ---"
 cd $APP_DIR
 npm install
-# Garante todos os módulos críticos mesmo que não estejam no package.json
-npm install express dotenv pg cors helmet prom-client express-async-errors @aws-sdk/client-secrets-manager
+# Garante módulos críticos mesmo que não estejam no package.json
+npm install express-async-errors @aws-sdk/client-secrets-manager
 echo "Pacotes instalados: $(ls node_modules | wc -l)"
 
 # ══════════════════════════════════════════════════════════════════════════════
