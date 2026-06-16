@@ -90,8 +90,14 @@ Durante a implantação, enfrentamos e resolvemos desafios críticos que servira
 1.  **Restrições de Caracteres no RDS:** Aprendemos que a API da AWS (via Terraform/SDK) rejeita caracteres como `@` em senhas de banco de dados, embora o Console Web aceite. **Lição:** Usar senhas alfanuméricas em automações.
 2.  **Integridade do `package.json`:** O código fonte exigia bibliotecas (`helmet`, `express-async-errors`, `prom-client`) que não estavam listadas nas dependências. **Lição:** Sempre auditar os `require()` do código antes do deploy.
 3.  **Ambiente de Execução SSM:** Comandos via AWS Systems Manager rodam em ambientes restritos. **Lição:** É fundamental definir variáveis de ambiente como `HOME=/root` e usar caminhos absolutos para garantir que o `npm install` e outros binários funcionem corretamente.
-4.  **Escapamento em Scripts (Echo vs S3):** Tentar gerar arquivos de configuração via `echo` pode corromper caracteres de aspas. **Lição:** É mais seguro gerar arquivos localmente e sincronizá-los via S3 para manter a integridade do código.
+4.  **Escapamento em Scripts (Echo vs S3):** Tentar gerar arquivos de configuração via `echo` pode corromper caracteres de aspas. **Lição:** É mais seguro gerar arquivos localmente e sincronizá-los via S3 ou usar codificação **Base64** para garantir a integridade de caracteres especiais como `$` em configurações de proxy Nginx.
 5.  **Roteamento de API:** O erro de `/api/api` (404) nos ensinou a sempre validar se o frontend já prefixa as chamadas de rede antes de configurar a URL base no `config.js`.
+
+### 📊 Observabilidade como Código (Grafana/Prometheus)
+
+1.  **Conflito de UID de DataSource:** Dashboards importados possuem UIDs vinculados às suas consultas. Se o DataSource for criado sem um UID idêntico, o dashboard retornará "No Data". **Solução:** Usar o diretório `/etc/grafana/provisioning/` para forçar a criação de fontes de dados com UIDs fixos.
+2.  **Wrappers JSON:** Arquivos de dashboard exportados podem conter metadados extras (`{ "dashboard": ... }`) que impedem a importação direta via UI. **Solução:** Sempre validar a estrutura raiz do JSON antes da importação.
+3.  **Relabeling no Prometheus:** O Grafana muitas vezes busca por labels específicas (ex: `instance: techstock-api`). O Prometheus, por padrão, usa o IP:Porta. **Solução:** Usar `relabel_configs` no `prometheus.yml` para criar nomes amigáveis que coincidam com os painéis.
 
 ---
 
