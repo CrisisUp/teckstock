@@ -4,7 +4,6 @@
 
 [PASSO.-.PASSO.-.PROJETO.MULTICLOUD.VPN.AZURE.TO.AWS.pdf](https://github.com/user-attachments/files/28952618/PASSO.-.PASSO.-.PROJETO.MULTICLOUD.VPN.AZURE.TO.AWS.pdf)
 
-
 ☁ Configuração Azure e AWS - Passo a Passo ☁
 
 ✔ ETAPA 1: CONFIGURAÇÃO NO AZURE
@@ -33,7 +32,6 @@
      - Modo ativo-ativo habilitado: Desabilitado
      - Configurar BGP: Desabilitado
 
-
 ✔ CONFIGURAÇÃO NA AWS
 
 ✔ Criar uma VPC (Virtual Private Cloud)
@@ -52,7 +50,6 @@
 
 ✔ Criar o Virtual Private Gateway e anexar à VPC
      - Nome: vpg-aws-azure
-
 
 ✔ Criar a conexão Site-to-Site VPN
      - Nome: vpn-aws-azure
@@ -74,7 +71,6 @@
      - Região: East-US
      - Endereço IP: IP externo do arquivo de configuração
      - Espaço(s) de Endereço: 172.16.0.0/16  # REDE AWS
-
 
 ✔ Criar a conexão no Virtual Network Gateway do Azure
      - Nome: connection-azure-aws

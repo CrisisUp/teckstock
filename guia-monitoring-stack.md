@@ -9,7 +9,7 @@
 
 ## 🏗️ Arquitetura
 
-```
+```text
 Internet (HTTP:80)
     │
     ▼
@@ -180,7 +180,7 @@ server {
 ### Target Group `tg-monitoring`
 
 | Campo | Valor |
-|---|---|
+| --- | --- |
 | Porta | **80** (Nginx) — nunca 3000 |
 | Health check path | /grafana/api/health |
 | Instância | EC2 Monitoring |
@@ -190,7 +190,7 @@ server {
 > 🔴 ALB avalia da menor para a maior prioridade. `/*` deve ter prioridade **maior** que `/grafana*` e `/prometheus*`.
 
 | Prioridade | Path | Target Group |
-|---|---|---|
+| --- | --- | --- |
 | **1** | /grafana* | tg-monitoring |
 | **2** | /prometheus* | tg-monitoring |
 | **3** | /* | tg-frontend |
@@ -284,7 +284,7 @@ curl -s 'http://localhost:3000/grafana/api/datasources' \
 ### Importados automaticamente pelo script (comunidade Grafana)
 
 | ID | Nome | Cobre |
-|---|---|---|
+| --- | --- | --- |
 | 1860 | Node Exporter Full | CPU, RAM, disco, rede |
 | 11159 | Node.js Application | Heap, GC, event loop, req/s |
 | 3662 | Prometheus Stats | Self-monitoring do Prometheus |
@@ -296,7 +296,7 @@ curl -s 'http://localhost:3000/grafana/api/datasources' \
 Todos compatíveis com a infraestrutura atual. O `server.js` expõe todas as métricas via `prom-client` com prefixo `techstock_`.
 
 | Arquivo | Foco | Fonte |
-|---|---|---|
+| --- | --- | --- |
 | dashboard_techstock-observability.json | Status UP/DOWN todos os targets | Prometheus nativo ✅ |
 | dashboard_techstock-infra-ec2.json | CPU, RAM, disco, rede por EC2 | Node Exporter ✅ |
 | dashboard_techstock-api.json | Req/s, heap, GC, event loop, erros 5xx | prom-client (`techstock_*`) ✅ |
@@ -304,6 +304,7 @@ Todos compatíveis com a infraestrutura atual. O `server.js` expõe todas as mé
 | dashboard_techstock-devops.json | API online, processo, handles, rede | Node Exporter + prom-client ✅ |
 
 > Confirma métricas disponíveis no backend:
+>
 > ```bash
 > curl -s http://BACKEND_IP:3000/metrics | grep techstock_ | head -15
 > ```
@@ -314,7 +315,7 @@ Todos compatíveis com a infraestrutura atual. O `server.js` expõe todas as mé
 
 O ALB pode bloquear uploads grandes pela UI do Grafana. Use a API diretamente no EC2 Monitoring.
 
-**Passo 1 — Copie os JSONs para o EC2 Monitoring**
+#### **Passo 1 — Copie os JSONs para o EC2 Monitoring**
 
 ```bash
 # Opção A — via S3
@@ -324,7 +325,7 @@ aws s3 sync s3://SEU_BUCKET/dashboards/ /tmp/dashboards/
 scp -i vockey.pem dashboard_techstock-*.json ec2-user@IP_MONITORING:/tmp/dashboards/
 ```
 
-**Passo 2 — Importa todos via curl (no EC2 Monitoring via SSM)**
+#### **Passo 2 — Importa todos via curl (no EC2 Monitoring via SSM)**
 
 ```bash
 cd /tmp/dashboards
@@ -352,7 +353,7 @@ else:
 done
 ```
 
-**Passo 3 — Verifica dashboards importados**
+#### **Passo 3 — Verifica dashboards importados**
 
 ```bash
 curl -s 'http://localhost:3000/grafana/api/search?type=dash-db' \
@@ -372,10 +373,10 @@ for d in json.load(sys.stdin):
 
 Para métricas nativas do RDS (conexões reais, storage, CPU) e EC2 via CloudWatch.
 
-**Grafana → Connections → Add new connection → CloudWatch**
+#### **Grafana → Connections → Add new connection → CloudWatch**
 
 | Campo | Valor |
-|---|---|
+| --- | --- |
 | Authentication Provider | `AWS SDK Default` (usa LabInstanceProfile automaticamente) |
 | Default Region | `us-east-1` (ou sua região) |
 
@@ -383,7 +384,7 @@ Clica **Save & Test**.
 
 **Métricas úteis:**
 
-```
+```text
 Namespace: AWS/RDS
   DatabaseConnections, FreeStorageSpace, CPUUtilization
   Dimensão: DBInstanceIdentifier = techstock-db
@@ -401,7 +402,7 @@ Namespace: TechStock/Monitoring
 
 ## 📋 Checklist de Implantação
 
-```
+```text
 Pré-script
 [ ] EC2 Monitoring provisionado (subnet privada, LabInstanceProfile)
 [ ] NAT Gateway ativo
@@ -434,7 +435,7 @@ Validação
 ## 📋 Variáveis de Referência
 
 | Variável | Valor | Observação |
-|---|---|---|
+| --- | --- | --- |
 | ALB DNS | SEU_ALB_DNS | Sem barra no final |
 | Grafana `domain` | ALB DNS | Sem protocolo, sem path |
 | Grafana `root_url` | %(protocol)s://%(domain)s/grafana/ | Trailing slash obrigatória |
@@ -452,7 +453,7 @@ Validação
 ## 🔧 Troubleshooting
 
 | Sintoma | Causa | Fix |
-|---|---|---|
+| --- | --- | --- |
 | 503 ao acessar /grafana ou /prometheus | Nginx inactive | `sudo systemctl start nginx` |
 | ALB abre frontend em /grafana | Prioridade de regra errada | /grafana* e /prometheus* → prioridade 1 e 2 |
 | Grafana 403 no datasource | SSRF protection Grafana 13 | Usar URL do ALB no datasource |

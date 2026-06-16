@@ -1,4 +1,5 @@
 # 🌐 TechStock Multi-Cloud — AWS + Azure
+
 ## Guia do Aluno
 
 > **Atividade prática** · Nível Avançado
@@ -14,12 +15,14 @@
 A empresa Honey Badger - uma empresa Alpha Tech Group, utiliza um sistema de gestão de estoque - TechStock, para a gestão de estoque do seu almoxarifado. Hoje, empresa opera 100% na AWS em um misto de IaaS + PaaS. O departamento de BI - Bussiness Intelligence - gerido pelo sobrinho do dono da empresa, contratou serviços na Azure - sem avisar o time de tecnlologia - para relatórios gerenciais e o time de infraestrutura - por 'sugestão' do dono, decidiu mover o monitoramento (Grafana + Prometheus) para a Azure, centralizando observabilidade + backup + relatórios no segundo cloud. A empresa Techstock fechou as portas (todo o time ganhou no bolão da Mega da Virada) e deixou somente o repositório do projeto disponível, não oferecendo mais suporte a implantações e migrações.
 
 ## Desafio
+
 Migrar o frontend para o S3 e configurar sua comunicação com o backend;
 Criar uma VPN Site-To-Site entre as clouds, sem expor dados a internet publlica;
 Migrar o monitoramento para a Azure;
 Conectar o Power BI ao RDS para monitoramento do estoque;
 
 ## Cronograma
+
 Entrega parcial  - 17/06/2026;
 Entrega AWS - 19/06/2026;
 Entrega Final (AWS + Azure) - 22/06/2026;
@@ -29,7 +32,7 @@ Apresentação Final - 23/06/2026.
 
 ## 🏗️ Arquitetura inicial
 
-```
+```text
 ┌─────────────────────────────────┐ 
 │           AWS                   │ 
 │  us-east-1                      │ 
@@ -42,10 +45,13 @@ Apresentação Final - 23/06/2026.
 │               │                 │
 │  VPC: 10.0.0.0/16               │ 
 └─────────────────────────────────┘
+```
+
 ---
+
 ## ✅ Checklist de Validação
 
-```
+```text
 AWS
 [ ] http://ALB_DNS/api/health → {"ok":true,"database":"connected"}
 [ ] http://techstock-frontend-SUACONTA.s3-website-us-east-1.amazonaws.com/ → interface TechStock
@@ -85,4 +91,4 @@ Backup e BI (Azure)
 
 ---
 
-*TechStock · Atividade Multi-Cloud AWS + Azure · SENAI*
+TechStock · Atividade Multi-Cloud AWS + Azure · SENAI

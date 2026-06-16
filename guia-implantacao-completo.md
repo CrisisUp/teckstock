@@ -8,7 +8,7 @@
 
 ## 🏗️ Arquitetura
 
-```
+```text
 Internet (HTTP:80)
     │
     ▼
@@ -49,7 +49,7 @@ RDS PostgreSQL (subnet privada, SSL, porta 5432)
 ## 📋 Pré-requisitos AWS (Learner Lab)
 
 | Recurso | Configuração |
-|---|---|
+| --- | --- |
 | Região | us-east-1 |
 | IAM Role | LabRole / LabInstanceProfile |
 | Credenciais | vockey + AWS_SESSION_TOKEN (~4h) |
@@ -62,7 +62,7 @@ RDS PostgreSQL (subnet privada, SSL, porta 5432)
 
 ## ✅ Checklist Global
 
-```
+```text
 FASE 1 — Infraestrutura (Console AWS)
 [ ] VPC com subnets pública e privada em 2 AZs
 [ ] NAT Gateway na subnet pública
@@ -104,7 +104,7 @@ FASE 5 — ALB (Console AWS)
 ## 1️⃣ Security Groups
 
 | SG | Inbound | Source |
-|---|---|---|
+| --- | --- | --- |
 | sg-alb | 80 | 0.0.0.0/0 |
 | sg-backend | 3000 | sg-alb, sg-monitoring |
 | sg-backend | 9100 | sg-monitoring |
@@ -125,7 +125,7 @@ Todos os SGs: outbound 0.0.0.0/0 liberado.
 **Console AWS → RDS → Create database:**
 
 | Campo | Valor |
-|---|---|
+| --- | --- |
 | Engine | PostgreSQL 15 |
 | Template | Free tier |
 | DB identifier | techstock-db |
@@ -149,7 +149,7 @@ Aguarde status **Available** antes de continuar. Copie o **Endpoint**.
 ### Target Groups
 
 | Nome | Tipo | Porta | Health check |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | tg-backend | Instance | 3000 | /api/health |
 | tg-frontend | Instance | 80 | /health |
 | tg-monitoring | Instance | 80 | /grafana/api/health |
@@ -166,7 +166,7 @@ Aguarde status **Available** antes de continuar. Copie o **Endpoint**.
 > 🔴 Ordem obrigatória — ALB avalia da menor para a maior prioridade.
 
 | Prioridade | Condição | Target Group |
-|---|---|---|
+| --- | --- | --- |
 | **1** | Path `/api*` | tg-backend |
 | **2** | Path `/grafana*` | tg-monitoring |
 | **3** | Path `/prometheus*` | tg-monitoring |
@@ -177,10 +177,10 @@ Aguarde status **Available** antes de continuar. Copie o **Endpoint**.
 
 ## 4️⃣ EC2 Backend
 
-### Provisionamento
+### Provisionamento Backend
 
 | Campo | Valor |
-|---|---|
+| --- | --- |
 | AMI | Amazon Linux 2023 |
 | Instance type | t3.micro |
 | Subnet | Privada |
@@ -188,7 +188,7 @@ Aguarde status **Available** antes de continuar. Copie o **Endpoint**.
 | SG | sg-backend |
 | User data | (opcional — pode deixar em branco) |
 
-### Execução do script
+### Execução do script Backend
 
 ```bash
 # Via SSM Session Manager
@@ -198,13 +198,13 @@ sudo bash setup-backend.sh
 **Dados solicitados pelo script:**
 
 | Prompt | Valor | Onde encontrar |
-|---|---|---|
+| --- | --- | --- |
 | Endpoint RDS | techstock-db.xxxx.rds.amazonaws.com | RDS → Databases → Endpoint |
 | DB_PASSWORD | (senha criada no RDS) | Anotado no passo anterior |
 | DNS do ALB | techstock-alb-xxx.us-east-1.elb.amazonaws.com | EC2 → Load Balancers → DNS name |
 | S3 Bucket | (opcional) | S3 → bucket/prefixo |
 
-### O que o script faz
+### O que o script faz no backend
 
 1. Instala Node.js, npm, postgresql15
 2. Cria usuário `techstock` e diretório `/opt/techstock`
@@ -215,13 +215,13 @@ sudo bash setup-backend.sh
 7. Cria serviço systemd com `EnvironmentFile`
 8. Instala Node Exporter :9100 e CloudWatch Agent
 
-### Correções aplicadas
+### Correções aplicadas no backend
 
 - `.env` com `chown` antes do `chown -R` geral (garante permissões corretas)
 - `EnvironmentFile` no systemd (variáveis disponíveis mesmo se dotenv falhar)
 - `sudo -u techstock` valida leitura do `.env` antes de continuar
 
-### Validação
+### Validação do backend
 
 ```bash
 curl -s http://localhost:3000/api/health | python3 -m json.tool
@@ -232,17 +232,17 @@ sudo journalctl -u techstock -f
 
 ## 5️⃣ EC2 Frontend
 
-### Provisionamento
+### Provisionamento Frontend
 
 | Campo | Valor |
-|---|---|
+| --- | --- |
 | AMI | Amazon Linux 2023 |
 | Instance type | t3.micro |
 | Subnet | Privada |
 | IAM profile | LabInstanceProfile |
 | SG | sg-frontend |
 
-### Execução do script
+### Execução do script Frontend
 
 ```bash
 sudo bash setup-frontend.sh
@@ -251,11 +251,11 @@ sudo bash setup-frontend.sh
 **Dados solicitados pelo script:**
 
 | Prompt | Valor |
-|---|---|
+| --- | --- |
 | DNS do ALB | techstock-alb-xxx.us-east-1.elb.amazonaws.com |
 | S3 Bucket | (opcional) bucket/prefixo com index.html, style.css, app.js, config.js |
 
-### O que o script faz
+### O que o script faz no frontend
 
 1. Instala Nginx
 2. Substitui `nginx.conf` padrão (remove server block default do AL2023)
@@ -266,14 +266,14 @@ sudo bash setup-frontend.sh
 7. `systemctl restart nginx` (não `start`)
 8. Instala Node Exporter :9100 e CloudWatch Agent
 
-### Correções aplicadas
+### Correções aplicadas no frontend
 
 - `nginx.conf` substituído inteiro (conflito com AL2023)
 - `chown/chmod` imediatamente após criação dos diretórios
 - `restart` em vez de `start`
 - `config.js` gerado com `no-store, no-cache` (URL do ALB pode mudar)
 
-### Validação
+### Validação do frontend
 
 ```bash
 curl -s http://localhost/health
@@ -295,17 +295,17 @@ sudo bash setup-frontend.sh
 
 ## 6️⃣ EC2 Monitoring
 
-### Provisionamento
+### Provisionamento Monitoring
 
 | Campo | Valor |
-|---|---|
+| --- | --- |
 | AMI | Amazon Linux 2023 |
 | Instance type | t3.micro |
 | Subnet | Privada |
 | IAM profile | LabInstanceProfile |
 | SG | sg-monitoring |
 
-### Execução do script
+### Execução do script Monitoring
 
 ```bash
 sudo bash setup-monitoring.sh
@@ -314,12 +314,12 @@ sudo bash setup-monitoring.sh
 **Dados solicitados pelo script:**
 
 | Prompt | Valor |
-|---|---|
+| --- | --- |
 | DNS do ALB | techstock-alb-xxx.us-east-1.elb.amazonaws.com |
 | IP privado do Backend | 10.0.10.X (EC2 Backend → Private IPv4) |
 | Senha Grafana | (Enter para usar TechStock@2024) |
 
-### O que o script faz
+### O que o script faz no monitoring
 
 1. Instala Node Exporter :9100
 2. Instala Prometheus :9090 com `--web.route-prefix=/prometheus`
@@ -334,7 +334,7 @@ sudo bash setup-monitoring.sh
 ### Correções críticas aplicadas
 
 | Problema | Fix |
-|---|---|
+| --- | --- |
 | Nginx ausente | Incluído na seção 3 do script |
 | Self-monitoring DOWN | `metrics_path: /prometheus/metrics` no prometheus.yml |
 | Grafana 13 SSRF | Datasource usa URL do ALB, não localhost |
@@ -345,7 +345,7 @@ sudo bash setup-monitoring.sh
 | Prioridade ALB | `/grafana*` e `/prometheus*` antes de `/*` |
 | Dashboard sem dados | UID do datasource hardcoded nos JSONs TechStock |
 
-### Validação
+### Validação do monitoring
 
 ```bash
 curl -s http://localhost/grafana/api/health -u 'admin:TechStock@2024'
@@ -355,10 +355,10 @@ sudo promtool check config /etc/prometheus/prometheus.yml
 
 ### Dashboards customizados TechStock (importação manual)
 
-**Grafana → Dashboards → New → Import → Upload JSON**
+#### Grafana → Dashboards → New → Import → Upload JSON
 
 | Arquivo | Foco |
-|---|---|
+| --- | --- |
 | dashboard_techstock-observability.json | Status UP/DOWN de todos os targets |
 | dashboard_techstock-infra-ec2.json | CPU, RAM, disco, rede |
 | dashboard_techstock-api.json | Req/s, latência, heap Node.js |
@@ -382,7 +382,7 @@ sudo chown nginx:nginx /usr/share/nginx/html/techstock/*.js
 ### Funcionalidades
 
 | Seção | Descrição |
-|---|---|
+| --- | --- |
 | Dashboard | Cards de totais, banner de alertas, tabela de itens críticos |
 | Produtos | CRUD completo, busca por nome/código, filtro por categoria |
 | Movimentações | Histórico de todas as movimentações, filtro por tipo/produto, nova movimentação |
@@ -392,7 +392,7 @@ sudo chown nginx:nginx /usr/share/nginx/html/techstock/*.js
 ### Correções aplicadas
 
 | Bug | Fix |
-|---|---|
+| --- | --- |
 | Modais (config, histórico) fechavam ao clicar fora | `MODAL_NO_OUTSIDE_CLOSE` protege `ov-cfg` e `ov-hist` |
 | Edição de quantidade não salvava | Campo `p-qty` readonly em edição + hint para usar movimentação |
 | Aba Movimentações vazia | `_fetchMovs` usa `/api/movimentos/:id` em paralelo (rota `/api/movimentos` não existe) |
@@ -403,7 +403,7 @@ sudo chown nginx:nginx /usr/share/nginx/html/techstock/*.js
 ## 📋 Variáveis de Referência
 
 | Variável | Exemplo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | ALB_DNS | techstock-alb-XXX.us-east-1.elb.amazonaws.com | Sem http://, sem barra |
 | DB_HOST | techstock-db.xxxx.us-east-1.rds.amazonaws.com | Endpoint do RDS |
 | DB_NAME | techstock | Fixo |
@@ -422,7 +422,7 @@ sudo chown nginx:nginx /usr/share/nginx/html/techstock/*.js
 ## 🔧 Troubleshooting Rápido
 
 | Sintoma | Causa provável | Fix |
-|---|---|---|
+| --- | --- | --- |
 | Frontend retorna HTML no `/api/*` | Prioridade ALB errada | `/api*` → prioridade 1 |
 | 503 no /grafana ou /prometheus | Nginx inativo no Monitoring | `sudo systemctl start nginx` |
 | 504 Gateway Timeout | EC2 desligado ou Target Group unhealthy | Verificar instâncias e TG |
