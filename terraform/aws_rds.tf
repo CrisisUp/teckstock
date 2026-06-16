@@ -16,7 +16,8 @@ resource "aws_db_instance" "postgres" {
   storage_type           = "gp2"
   db_name                = "techstock"
   username               = "techstock_user"
-  password               = "SenhaForte@2024!"
+  password             = "TechStock12345"
+
   db_subnet_group_name   = aws_db_subnet_group.rds.name
   vpc_security_group_ids = [aws_security_group.rds.id]
   skip_final_snapshot    = true

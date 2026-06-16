@@ -6,7 +6,7 @@ terraform {
     }
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+      version = ">= 3.7.0" # Versão que introduziu o skip_provider_registration ou similar, mas vamos tentar a abordagem de skip
     }
   }
 }
@@ -17,4 +17,5 @@ provider "aws" {
 
 provider "azurerm" {
   features {}
+  skip_provider_registration = true
 }

@@ -29,6 +29,7 @@ output "public_subnets" {
   value = aws_subnet.public[*].id
 }
 
+/*
 # Azure - Informações Iniciais
 output "azure_resource_group" {
   value = azurerm_resource_group.main.name
@@ -37,6 +38,7 @@ output "azure_resource_group" {
 output "azure_vnet_name" {
   value = azurerm_virtual_network.main.name
 }
+*/
 
 # IPs Privados das EC2s (Essenciais para configurar Prometheus e VPN)
 output "backend_private_ip" {
