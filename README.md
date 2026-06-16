@@ -13,6 +13,29 @@ Este repositório contém a automação e documentação para o desafio final da
 
 ---
 
+## 🔐 Variáveis e Credenciais (Ambiente de Lab)
+
+### 🟠 AWS Infrastructure
+*   **VPC CIDR:** `172.16.0.0/16`
+*   **Public Subnets:** `172.16.0.0/24` (AZ-a), `172.16.1.0/24` (AZ-b)
+*   **Private Subnets:** `172.16.10.0/24` (AZ-a), `172.16.11.0/24` (AZ-b)
+*   **RDS Endpoint:** `techstock-db.cpq7pnn7gdwj.us-east-1.rds.amazonaws.com`
+
+### 🔑 Acessos
+| Serviço | Usuário | Senha | Porta |
+| :--- | :--- | :--- | :--- |
+| **Banco de Dados (RDS)** | `techstock_user` | `TechStock12345` | 5432 |
+| **Grafana** | `admin` | `admin` (inicial) | 80 (/grafana) |
+| **Backend API** | - | - | 3000 (/api) |
+| **Prometheus** | - | - | 9090 (/prometheus) |
+
+### 🔵 Azure Infrastructure
+*   **VNet CIDR:** `10.0.0.0/16`
+*   **Subnet Monitoring:** `10.0.0.0/24`
+*   **GatewaySubnet:** `10.0.255.0/27`
+
+---
+
 ## 📅 Cronograma de Entregas
 
 | Data | Fase | Descrição | Status |
