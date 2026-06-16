@@ -4,6 +4,15 @@ Este repositório contém a automação e documentação para o desafio final da
 
 ---
 
+## 🔗 Links de Acesso
+
+*   **GitHub:** [https://github.com/CrisisUp/teckstock](https://github.com/CrisisUp/teckstock)
+*   **Aplicação TechStock:** [http://techstock-alb-1787035187.us-east-1.elb.amazonaws.com](http://techstock-alb-1787035187.us-east-1.elb.amazonaws.com)
+*   **Grafana Dashboards:** [http://techstock-alb-1787035187.us-east-1.elb.amazonaws.com/grafana](http://techstock-alb-1787035187.us-east-1.elb.amazonaws.com/grafana)
+*   **Prometheus Console:** [http://techstock-alb-1787035187.us-east-1.elb.amazonaws.com/prometheus](http://techstock-alb-1787035187.us-east-1.elb.amazonaws.com/prometheus)
+
+---
+
 ## 📅 Cronograma de Entregas
 
 | Data | Fase | Descrição | Status |
