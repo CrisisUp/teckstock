@@ -94,14 +94,29 @@ async function bootstrap() {
     next();
   });
 
-  // ── Contador de requisições ─────────────────────────────────────────────────
+  // ── Contador de requisições (Corrigido para os Dashboards) ──────────────────
   app.use((req, _res, next) => {
     _res.on('finish', () => {
-      httpRequests.inc({ method: req.method, path: req.path, status: _res.statusCode });
+      // Pega o caminho original da rota tratada pelo Express (ex: /api/produtos/:id)
+      // Se não houver rota mapeada (como um 404), usa o req.path como fallback
+      let routePath = req.route ? req.baseUrl + req.route.path : req.baseUrl + req.path;
+      
+      if (!routePath) {
+        routePath = req.url;
+      }
+
+      // Registra no Prometheus apenas requisições que pertencem à sua API de dados
+      if (routePath.startsWith('/api/')) {
+        httpRequests.inc({ 
+          method: req.method, 
+          path: routePath, 
+          status: _res.statusCode 
+        });
+      }
     });
     next();
   });
-
+  
   // ── Pool PostgreSQL ─────────────────────────────────────────────────────────
   const pool = new Pool({
     host:     process.env.DB_HOST     || 'localhost',

@@ -22,7 +22,7 @@ VARIÁVEIS (.env):
   DB_PORT     = 5432
   DB_NAME     = techstock
   DB_USER     = techstock_user
-  DB_PASSWORD = SenhaForte@2024!
+  DB_PASSWORD = SenhaForte@2024! / TechStock123!
   DB_SSL      = true
   PORT        = 3000
   NODE_ENV    = production
