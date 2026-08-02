@@ -11,12 +11,12 @@
 | Ferramenta | Versão | Onde verificar |
 |---|---|---|
 | Node.js | v24.18.0 | `node --version` |
-| PostgreSQL | 18 (único — porta **5433**) | `net start` → `postgresql-x64-18` |
+| PostgreSQL | 18 (único — porta padrão **5432**) | `net start` → `postgresql-x64-18` |
 | psql | 18 | `C:\Program Files\PostgreSQL\18\bin\psql.exe` |
 
 > - Docker **não** é necessário — o Postgres nativo do Windows já está rodando.
-> - **Nota desta máquina:** o PostgreSQL 17 foi removido. O 18 usa a porta **5433**
->   (não a padrão 5432) — o `.env` e o schema.sql já refletem isso.
+> - **Nota desta máquina:** o PostgreSQL 17 foi removido. O 18 usa a porta
+>   **padrão 5432** (o `postgresql.conf` foi ajustado para 5432).
 
 ---
 
@@ -27,7 +27,7 @@ Navegador (frontend/ via arquivos ou servidor estático)
     │  http://localhost:3000/api/*
     ▼
 Backend Node.js (backend/server.js, porta 3000)
-    │  PostgreSQL (localhost:5433)
+    │  PostgreSQL (localhost:5432)
     ▼
 Banco techstock (local) — criado pelo schema.sql
 ```
@@ -45,7 +45,7 @@ Banco techstock (local) — criado pelo schema.sql
 Abra o **psql como postgres** (senha definida na instalação do PostgreSQL):
 
 ```powershell
-"C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -h localhost -p 5433
+"C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -h localhost
 ```
 
 Dentro do psql, crie o usuário e o banco:
@@ -73,7 +73,7 @@ Edite `.env` com os valores locais:
 ```env
 PORT=3000
 DB_HOST=localhost
-DB_PORT=5433
+DB_PORT=5432
 DB_NAME=techstock
 DB_USER=techstock_user
 DB_PASSWORD=sua_senha_local
@@ -105,7 +105,7 @@ npm install          # ou npm ci (usa package-lock.json)
 cd backend
 $env:PGPASSWORD = "sua_senha_local"   # ou defina no ambiente
 & "C:\Program Files\PostgreSQL\18\bin\psql.exe" `
-  -h localhost -p 5433 -U techstock_user -d techstock -f schema.sql
+  -h localhost -U techstock_user -d techstock -f schema.sql
 ```
 
 > O schema é **idempotente** — pode rodar quantas vezes quiser (cria tabelas,
@@ -158,7 +158,7 @@ npm test             # 27 testes (validação + integração com mock de pg)
 | Sintoma | Causa | Fix |
 |---|---|---|
 | `/api/health` retorna `503` | Banco não criado ou credenciais erradas | Rever passos 1–2; testar conexão no psql |
-| `ECONNREFUSED :5433` | Serviço Postgres 18 parado | `net start postgresql-x64-18` |
+| `ECONNREFUSED :5432` | Serviço Postgres 18 parado | `net start postgresql-x64-18` |
 | `password authentication failed` | Senha do usuário errada | Corrigir `DB_PASSWORD` no `.env` |
 | `FATAL: database "techstock" does not exist` | Banco não criado | Passo 1: `CREATE DATABASE techstock` |
 | Backend sai com `CRÍTICO: DB_HOST/DB_PASSWORD` | `.env` não criado ou incompleto | Copiar `.env.example` → `.env` e preencher |
