@@ -1,0 +1,18 @@
+// config.js.example — TechStock
+// ─────────────────────────────────────────────────────────────────────────────
+// Este arquivo documenta o contrato do `config.js` (referenciado no index.html
+// ANTES do app.js). Ele NÃO é versionado no repositório porque contém a URL do
+// ambiente em uso — é gerado automaticamente pelo setup-frontend.sh (no deploy)
+// ou criado manualmente para desenvolvimento local.
+//
+// USO:
+//   1. Copie para `config.js` na mesma pasta:   cp config.js.example config.js
+//   2. Ajuste apiUrl para apontar para o backend:
+//        - Local:      http://localhost:3000
+//        - Deploy:     http://SEU-ALB.us-east-1.elb.amazonaws.com
+//   3. Recarregue a página. Se o backend não estiver configurado, o app usa
+//      o fallback `http://localhost:3000` (dev) — veja app.js → getApiUrl().
+
+window.TECHSTOCK_CONFIG = {
+  apiUrl: 'http://localhost:3000',   // URL base da API TechStock (sem barra no final)
+};
