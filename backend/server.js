@@ -19,6 +19,7 @@ const helmet     = require('helmet');
 const promClient = require('prom-client');
 const path       = require('path');
 const os         = require('os');
+const { parseId, parseNonNeg, parseStr, parseTipo, parseQty } = require('./validation');
 
 // ── AWS Secrets Manager ───────────────────────────────────────────────────────
 // Carrega variáveis sensíveis do Secrets Manager antes de qualquer uso de process.env.
@@ -172,44 +173,6 @@ async function bootstrap() {
     finally { client.release(); }
   }
 
-  // ── Validação de inputs ─────────────────────────────────────────────────────
-  // Helpers centralizados: evitam 500s de erro de cast do Postgres quando o
-  // cliente envia tipo/valor inválido (devolvem 400 limpo).
-  function parseId(v, label = 'id') {
-    const n = Number(v);
-    if (!Number.isInteger(n) || n <= 0) {
-      const err = new Error(`${label} inválido`);
-      err.status = 400;
-      throw err;
-    }
-    return n;
-  }
-
-  function parseNonNeg(v, label) {
-    const n = Number(v);
-    if (!Number.isFinite(n) || n < 0) {
-      const err = new Error(`${label} deve ser um número maior ou igual a zero`);
-      err.status = 400;
-      throw err;
-    }
-    return n;
-  }
-
-  function parseStr(v, label, max = 200) {
-    const s = String(v ?? '').trim();
-    if (!s) {
-      const err = new Error(`${label} é obrigatório`);
-      err.status = 400;
-      throw err;
-    }
-    if (s.length > max) {
-      const err = new Error(`${label} deve ter no máximo ${max} caracteres`);
-      err.status = 400;
-      throw err;
-    }
-    return s;
-  }
-
   // ── Middlewares ─────────────────────────────────────────────────────────────
   app.use(express.json());
   app.use(express.static(path.join(__dirname, 'public')));
@@ -347,15 +310,8 @@ async function bootstrap() {
     const { produto_id, tipo, quantidade, motivo, responsavel } = req.body;
 
     const pid = parseId(produto_id, 'produto_id');
-    const tp  = ['entrada', 'saida', 'ajuste'].includes(tipo)
-      ? tipo
-      : (() => { const e = new Error('tipo deve ser entrada, saida ou ajuste'); e.status = 400; throw e; })();
-    const qty = Number(quantidade);
-    if (!Number.isInteger(qty) || qty <= 0) {
-      const e = new Error('quantidade deve ser um inteiro maior que zero');
-      e.status = 400;
-      throw e;
-    }
+    const tp  = parseTipo(tipo);
+    const qty = parseQty(quantidade);
 
     const client = await pool.connect();
     try {
@@ -471,24 +427,34 @@ async function bootstrap() {
   });
 
   // ── Start ───────────────────────────────────────────────────────────────────
-  app.listen(port, '0.0.0.0', () => {
-    console.log(`[TechStock] rodando em http://0.0.0.0:${port} | hostname: ${os.hostname()}`);
-    console.log(`[TechStock] NODE_ENV=${process.env.NODE_ENV}`);
-    console.log(`[TechStock] DB_HOST=${process.env.DB_HOST}`);
-    console.log(`[TechStock] DB_SSL=${process.env.DB_SSL}`);
-    console.log(`[TechStock] CORS_ORIGIN=${process.env.CORS_ORIGIN}`);
-    console.log(`[TechStock] SECRET=${process.env.TECHSTOCK_SECRET_NAME || 'não configurado'}`);
+  // Só escuta se for o entry point (node server.js). Quando importado por
+  // testes, retorna o app para que o teste controle o listen/close.
+  if (require.main === module) {
+    app.listen(port, '0.0.0.0', () => {
+      console.log(`[TechStock] rodando em http://0.0.0.0:${port} | hostname: ${os.hostname()}`);
+      console.log(`[TechStock] NODE_ENV=${process.env.NODE_ENV}`);
+      console.log(`[TechStock] DB_HOST=${process.env.DB_HOST}`);
+      console.log(`[TechStock] DB_SSL=${process.env.DB_SSL}`);
+      console.log(`[TechStock] CORS_ORIGIN=${process.env.CORS_ORIGIN}`);
+      console.log(`[TechStock] SECRET=${process.env.TECHSTOCK_SECRET_NAME || 'não configurado'}`);
 
-    if (dotenvResult.error) {
-      console.warn(`[TechStock] dotenv: .env não encontrado — usando ambiente/systemd`);
-    } else {
-      console.log('[TechStock] dotenv: .env carregado');
-    }
+      if (dotenvResult.error) {
+        console.warn(`[TechStock] dotenv: .env não encontrado — usando ambiente/systemd`);
+      } else {
+        console.log('[TechStock] dotenv: .env carregado');
+      }
+    });
+  }
+
+  return { app, pool };
+}
+
+// Inicia o servidor (entry point)
+if (require.main === module) {
+  bootstrap().catch(err => {
+    console.error('[FATAL] Falha na inicialização:', err.message);
+    process.exit(1);
   });
 }
 
-// Inicia o servidor
-bootstrap().catch(err => {
-  console.error('[FATAL] Falha na inicialização:', err.message);
-  process.exit(1);
-});
+module.exports = { bootstrap };
