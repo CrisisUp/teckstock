@@ -106,38 +106,18 @@ test('cria um produto novo', async ({ page }) => {
     globalThis.__codigoGerado = codigoGerado;
   }
 
-  // Captura qualquer alert() de erro do saveProd para diagnóstico
-  const erros = [];
-  page.on('dialog', async (dialog) => {
-    erros.push(dialog.message());
-    await dialog.accept();
-  });
-
-  // Captura TODOS os POSTs ao /api/produtos para diagnosticar colisões
-  const posts = [];
-  page.on('request', (req) => {
-    if (req.url().includes('/api/produtos') && req.method() === 'POST') {
-      posts.push({ url: req.url(), corpo: req.postData() });
-    }
-  });
-
-  // Captura a resposta real do POST (para diagnóstico)
+  // Salva e aguarda o POST do backend retornar 201
   const respostaPost = page.waitForResponse(
     (r) => r.url().includes('/api/produtos') && r.request().method() === 'POST'
   );
-
-  // Salva
   await page.getByRole('button', { name: /Salvar/ }).click();
   const resp = await respostaPost;
-  const statusPost = resp.status();
-  const corpoPost = await resp.text();
+  expect(resp.status()).toBe(201);
 
-  if (erros.length) throw new Error('Alert de erro no save: ' + erros.join(' | ') + ' | corpo: ' + corpoPost + ' | status: ' + statusPost);
-  if (statusPost !== 201) {
-    throw new Error(`POST /api/produtos retornou ${statusPost}: ${corpoPost}`);
-  }
+  // Toast de sucesso aparece
+  await expect(page.locator('.toast.success')).toContainText('Produto criado', { timeout: 5000 });
 
-  // Espera o modal fechar (closeModal roda após o POST ok)
+  // Modal fecha após o POST ok
   await expect(page.locator('#ov-prod')).not.toHaveClass(/open/, { timeout: 5000 });
 
   // Busca o produto criado e confirma na tabela
@@ -232,12 +212,9 @@ test('validação de estoque insuficiente mostra erro', async ({ page }) => {
   await page.locator('#m-tipo').selectOption('saida');
   await page.locator('#m-qty').fill('99999');
 
-  // Registra o handler do alert() ANTES do clique (o alert dispara no click)
-  const dialogo = page.waitForEvent('dialog');
+  // O erro agora aparece como toast (não mais alert())
   await page.getByRole('button', { name: /Confirmar/ }).click();
-  const dialog = await dialogo;
-  expect(dialog.message()).toContain('Estoque insuficiente');
-  await dialog.accept();
+  await expect(page.locator('.toast.error')).toContainText('Estoque insuficiente', { timeout: 5000 });
 
   // Modal permanece aberto (erro não fecha)
   await expect(page.locator('#ov-mov')).toHaveClass(/open/);

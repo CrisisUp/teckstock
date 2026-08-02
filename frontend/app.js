@@ -239,10 +239,10 @@ async function loadProd() {
       <td>${qBar(p.quantidade, p.qtd_minima)}</td>
       <td>R$ ${Number(p.preco_custo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
       <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-        <button class="btn btn-sm btn-g" data-id="${p.id}" onclick="openMovById(this)" title="Movimentar">↕</button>
-        <button class="btn btn-sm btn-o" data-id="${p.id}" onclick="openHistById(this)" title="Histórico">📋</button>
-        <button class="btn btn-sm btn-o" data-id="${p.id}" onclick="openEditById(this)" title="Editar">✏️</button>
-        <button class="btn btn-sm btn-r" data-id="${p.id}" data-nome="${esc(p.nome)}" onclick="delProdById(this)" title="Inativar">🗑</button>
+        <button class="btn btn-sm btn-g" data-id="${p.id}" onclick="openMovById(this)" title="Movimentar" aria-label="Movimentar ${esc(p.nome)}">↕</button>
+        <button class="btn btn-sm btn-o" data-id="${p.id}" onclick="openHistById(this)" title="Histórico" aria-label="Histórico de ${esc(p.nome)}">📋</button>
+        <button class="btn btn-sm btn-o" data-id="${p.id}" onclick="openEditById(this)" title="Editar" aria-label="Editar ${esc(p.nome)}">✏️</button>
+        <button class="btn btn-sm btn-r" data-id="${p.id}" data-nome="${esc(p.nome)}" onclick="delProdById(this)" title="Inativar" aria-label="Inativar ${esc(p.nome)}">🗑</button>
       </div></td>
     </tr>`).join('');
   } catch (e) {
@@ -273,7 +273,7 @@ async function loadAlert() {
       <td>${catBadge(p.categoria_nome, p.categoria_cor)}</td>
       <td>${esc(p.localizacao || '—')}</td>
       <td>${qBar(p.quantidade, p.qtd_minima)}</td>
-      <td><button class="btn btn-sm btn-g" data-id="${p.id}" data-nome="${esc(p.nome)}" onclick="openMovById(this)">📥 Repor</button></td>
+      <td><button class="btn btn-sm btn-g" data-id="${p.id}" data-nome="${esc(p.nome)}" onclick="openMovById(this)" title="Repor" aria-label="Repor estoque de ${esc(p.nome)}">📥 Repor</button></td>
     </tr>`).join('');
   } catch (e) {
     tb.innerHTML = errRow(6, e.message);
@@ -379,12 +379,12 @@ async function onMovProdSelect() {
 async function saveMovNovo() {
   const prodId = document.getElementById('mn-mov-pid').value;
   if (!prodId) {
-    alert('Selecione um produto.');
+    toast('Selecione um produto.', 'error');
     return;
   }
   const qtd = Number(document.getElementById('mn-mov-qty').value);
   if (!qtd || qtd <= 0 || !Number.isInteger(qtd)) {
-    alert('Quantidade deve ser um número inteiro maior que zero.');
+    toast('Quantidade deve ser um número inteiro maior que zero.', 'error');
     document.getElementById('mn-mov-qty').focus();
     return;
   }
@@ -402,7 +402,7 @@ async function saveMovNovo() {
     document.getElementById('mn-prod').dataset.loaded = '';
     await loadMovPage();
     loadDash();
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast('Erro: ' + e.message, 'error'); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -530,7 +530,7 @@ async function saveProd() {
   const nome = document.getElementById('p-nome').value.trim();
 
   if (!nome) {
-    alert('Nome é obrigatório.');
+    toast('Nome é obrigatório.', 'error');
     document.getElementById('p-nome').focus();
     return;
   }
@@ -564,8 +564,9 @@ async function saveProd() {
     closeModal('ov-prod');
     loadProd();
     loadDash();
+    toast(id ? 'Produto atualizado ✓' : 'Produto criado ✓', 'success');
   } catch (e) {
-    alert('Erro ao salvar: ' + e.message);
+    toast('Erro ao salvar: ' + e.message, 'error');
   }
 }
 
@@ -575,7 +576,8 @@ async function delProd(id, nome) {
     await api(`/api/produtos/${id}`, { method: 'DELETE' });
     loadProd();
     loadDash();
-  } catch (e) { alert('Erro: ' + e.message); }
+    toast('Produto inativado', 'success');
+  } catch (e) { toast('Erro: ' + e.message, 'error'); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -594,7 +596,7 @@ function openMov(id, nome) {
 async function saveMov() {
   const qtd = Number(document.getElementById('m-qty').value);
   if (!qtd || qtd <= 0 || !Number.isInteger(qtd)) {
-    alert('Quantidade deve ser um número inteiro maior que zero.');
+    toast('Quantidade deve ser um número inteiro maior que zero.', 'error');
     document.getElementById('m-qty').focus();
     return;
   }
@@ -612,7 +614,8 @@ async function saveMov() {
     loadDash();
     if (document.getElementById('page-alertas').classList.contains('active'))       loadAlert();
     if (document.getElementById('page-movimentacoes').classList.contains('active')) loadMovPage();
-  } catch (e) { alert('Erro: ' + e.message); }
+    toast('Movimentação registrada ✓', 'success');
+  } catch (e) { toast('Erro: ' + e.message, 'error'); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -681,7 +684,7 @@ async function testApi() {
 
 function saveConfig() {
   const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
-  if (!url) { alert('Informe a URL do backend.'); return; }
+  if (!url) { toast('Informe a URL do backend.', 'error'); return; }
   setApiUrl(url);
   closeModal('ov-cfg');
   location.reload();
@@ -700,15 +703,35 @@ function esc(s) {
     .replace(/`/g,  '&#96;');   // backtick — quebraria a montagem via template literal
 }
 
+// ── Toast (notificação não-bloqueante) ─────────────────────────────────────
+// Substitui alert()/confirm(): não trava o navegador e some sozinho.
+// Uso: toast('Produto salvo', 'success') | toast('Erro: ...', 'error') | toast('msg')
+function toast(msg, tipo = 'info') {
+  const wrap = document.getElementById('toast-wrap');
+  if (!wrap) return;
+  const el = document.createElement('div');
+  el.className = `toast ${tipo}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transition = 'opacity .3s';
+    setTimeout(() => el.remove(), 300);
+  }, 3500);
+}
+
 function codeBadge(c, cls = 'b-info') {
   return `<span class="badge ${cls}">${esc(c)}</span>`;
 }
 
 function catBadge(nome, cor) {
   if (!nome) return '<span style="color:var(--muted)">—</span>';
-  const bg = cor ? cor + '22' : '#f1f5f9';
-  const tc = cor || '#64748b';
-  return `<span style="background:${bg};color:${tc};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">${esc(nome)}</span>`;
+  // Defesa em profundidade: só aceita hex válido (#RGB/#RRGGBB). Se vier algo
+  // fora do formato (ex: cor maliciosa no banco), usa o fallback neutro.
+  const hexOk = typeof cor === 'string' && /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(cor.trim());
+  const corSafe = hexOk ? cor.trim() : '#64748b';
+  const bg = hexOk ? corSafe + '22' : '#f1f5f9';
+  return `<span style="background:${bg};color:${corSafe};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">${esc(nome)}</span>`;
 }
 
 function qBar(qty, min) {
