@@ -395,6 +395,7 @@ async function saveMovNovo() {
     motivo:      document.getElementById('mn-mov-motivo').value.trim(),
     responsavel: document.getElementById('mn-mov-resp').value.trim() || 'web',
   };
+  const btn = btnLoading(document.querySelector('#ov-mov-novo .mf .btn-p'), 'Salvando…');
   try {
     await api('/api/movimentos', { method: 'POST', body: JSON.stringify(body) });
     closeModal('ov-mov-novo');
@@ -402,7 +403,8 @@ async function saveMovNovo() {
     document.getElementById('mn-prod').dataset.loaded = '';
     await loadMovPage();
     loadDash();
-  } catch (e) { toast('Erro: ' + e.message, 'error'); }
+    toast('Movimentação registrada ✓', 'success');
+  } catch (e) { toast('Erro: ' + e.message, 'error'); btnReset(btn); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -558,6 +560,8 @@ async function saveProd() {
     localizacao:  document.getElementById('p-loc').value.trim() || null,
   };
 
+  // Feedback de loading + evita duplo clique
+  const btn = btnLoading(document.querySelector('#ov-prod .mf .btn-p'), 'Salvando…');
   try {
     if (id) await api(`/api/produtos/${id}`, { method: 'PUT',  body: JSON.stringify(body) });
     else    await api('/api/produtos',        { method: 'POST', body: JSON.stringify(body) });
@@ -567,6 +571,7 @@ async function saveProd() {
     toast(id ? 'Produto atualizado ✓' : 'Produto criado ✓', 'success');
   } catch (e) {
     toast('Erro ao salvar: ' + e.message, 'error');
+    btnReset(btn);
   }
 }
 
@@ -607,6 +612,7 @@ async function saveMov() {
     motivo:      document.getElementById('m-motivo').value.trim(),
     responsavel: document.getElementById('m-resp').value.trim() || 'web',
   };
+  const btn = btnLoading(document.querySelector('#ov-mov .mf .btn-p'), 'Salvando…');
   try {
     await api('/api/movimentos', { method: 'POST', body: JSON.stringify(body) });
     closeModal('ov-mov');
@@ -615,7 +621,7 @@ async function saveMov() {
     if (document.getElementById('page-alertas').classList.contains('active'))       loadAlert();
     if (document.getElementById('page-movimentacoes').classList.contains('active')) loadMovPage();
     toast('Movimentação registrada ✓', 'success');
-  } catch (e) { toast('Erro: ' + e.message, 'error'); }
+  } catch (e) { toast('Erro: ' + e.message, 'error'); btnReset(btn); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -718,6 +724,23 @@ function toast(msg, tipo = 'info') {
     el.style.transition = 'opacity .3s';
     setTimeout(() => el.remove(), 300);
   }, 3500);
+}
+
+// ── Loading de botão (evita duplo clique e dá feedback de processamento) ───
+// Desabilita o botão e mostra "Salvando…". Retorna o botão para reabilitar.
+function btnLoading(btn, texto = 'Salvando…') {
+  btn.disabled = true;
+  btn.dataset.originalText = btn.innerHTML;
+  btn.innerHTML = `⏳ ${texto}`;
+  return btn;
+}
+// Reabilita o botão após o salvamento (sucesso ou erro)
+function btnReset(btn) {
+  btn.disabled = false;
+  if (btn.dataset.originalText) {
+    btn.innerHTML = btn.dataset.originalText;
+    delete btn.dataset.originalText;
+  }
 }
 
 function codeBadge(c, cls = 'b-info') {

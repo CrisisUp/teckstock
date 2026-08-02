@@ -218,6 +218,11 @@ test('validação de estoque insuficiente mostra erro', async ({ page }) => {
 
   // Modal permanece aberto (erro não fecha)
   await expect(page.locator('#ov-mov')).toHaveClass(/open/);
+
+  // Botão volta a ficar habilitado após o erro (btnReset — não fica travado)
+  const btnConfirmar = page.locator('#ov-mov .mf .btn-p');
+  await expect(btnConfirmar).toBeEnabled();
+  await expect(btnConfirmar).toContainText('Confirmar');
 });
 
 // ── Busca ────────────────────────────────────────────────────────────────────
