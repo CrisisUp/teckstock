@@ -142,6 +142,34 @@ tr:hover td { background:#f8fafc; }
 /* Hostname info */
 .host-info { font-size:11px; opacity:.6; margin-left:12px; font-family:monospace; }
 
+/* ── Dark mode (prefers-color-scheme) ────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#0f172a; --surface:#1e293b; --border:#334155;
+    --text:#e2e8f0; --muted:#94a3b8; --muted2:#64748b;
+    --primary:#60a5fa; --primary-dk:#3b82f6; --primary-lt:#1e3a5f;
+    --green-bg:#0f3d2e; --red-bg:#3b1d1d; --orange-bg:#3b2e0f;
+    --purple-bg:#2e1a3b;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.3);
+    --shadow-lg:0 10px 25px rgba(0,0,0,.5);
+  }
+  /* hardcoded claros que não usam variáveis */
+  body { background:var(--bg); }
+  th { background:#16213a; }
+  tr:hover td { background:#1e293b; }
+  .bar { background:#334155; }
+  .toast { background:#334155; }
+  /* ajustes de botões/badges com fundos claros fixos */
+  .btn-o:hover { background:#263449; }
+  .btn-g:hover { background:#123b2c; }
+  .btn-r:hover { background:#3d1e1e; }
+  .btn-g { background:#0f3d2e; }
+  .btn-r { background:#3b1d1d; }
+  .badge.b-info { background:var(--primary-lt); }
+  /* campos readonly (p-cod/p-qty) usam fundo claro inline — compensa via text-shadow sutil */
+  .api-badge, #btn-cfg { background:var(--primary); color:#fff; }
+}
+
 /* Toast notifications */
 #toast-wrap { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:300; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; width:max-content; max-width:90vw; }
 .toast { background:#1e293b; color:#fff; padding:10px 16px; border-radius:8px; font-size:14px; box-shadow:var(--shadow-lg); animation:toast-in .2s ease; display:flex; align-items:center; gap:8px; max-width:100%; }

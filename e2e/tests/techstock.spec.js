@@ -238,3 +238,20 @@ test('busca filtra produtos', async ({ page }) => {
   const temCabo = linhas.some((l) => l.includes('Cabo'));
   expect(temCabo).toBe(true);
 });
+
+// ── Favicon & dark mode ──────────────────────────────────────────────────────
+test('favicon é servido', async ({ request }) => {
+  const res = await request.get('/favicon.svg');
+  expect(res.status()).toBe(200);
+  expect(res.headers()['content-type']).toContain('image/svg+xml');
+});
+
+test('dark mode aplica variáveis escuras', async ({ page }) => {
+  // Força prefers-color-scheme: dark
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+
+  // O fundo da página deve usar a variável --bg escura (#0f172a)
+  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(bg).toBe('rgb(15, 23, 42)');   // #0f172a
+});
