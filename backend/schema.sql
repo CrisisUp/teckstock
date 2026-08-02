@@ -71,11 +71,30 @@ INSERT INTO produtos (codigo, nome, descricao, categoria_id, unidade, quantidade
   ('LI-002', 'Papel toalha cx',      'Caixa c/ 1000 folhas',        5, 'cx',   4, 10, 34.00, 'E1-02')
 ON CONFLICT (codigo) DO NOTHING;
 
-CREATE INDEX idx_produtos_codigo
+-- Índices de performance
+-- IF NOT EXISTS: o schema é reaplicado pelo setup (idempotente)
+
+-- Listagem de produtos ordena por nome → evita Sort
+CREATE INDEX IF NOT EXISTS idx_produtos_nome
+ON produtos(nome);
+
+CREATE INDEX IF NOT EXISTS idx_produtos_codigo
 ON produtos(codigo);
 
-CREATE INDEX idx_produtos_categoria
+CREATE INDEX IF NOT EXISTS idx_produtos_categoria
 ON produtos(categoria_id);
 
-CREATE INDEX idx_movimentos_produto
-ON movimentos(produto_id);
+-- Índice composto (produto_id, criado_em DESC):
+-- cobre o histórico (WHERE produto_id ORDER BY criado_em DESC LIMIT 50)
+-- e elimina o Sort — substitui o antigo índice só de produto_id.
+DROP INDEX IF EXISTS idx_movimentos_produto;
+CREATE INDEX IF NOT EXISTS idx_movimentos_produto_data
+ON movimentos(produto_id, criado_em DESC);
+
+-- Índice parcial para alertas e /api/stats (quantidade <= qtd_minima):
+-- a condição casa exatamente com as queries de alerta (inclui ativo=TRUE),
+-- então o planner pode usá-lo em escala. Só produtos potencialmente em alerta
+-- ocupam espaço no índice.
+CREATE INDEX IF NOT EXISTS idx_produtos_alertas
+ON produtos(quantidade)
+WHERE ativo = TRUE AND quantidade <= qtd_minima;
