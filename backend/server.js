@@ -259,6 +259,19 @@ async function bootstrap() {
     res.json(rows);
   });
 
+  app.get('/api/produtos/:id', async (req, res) => {
+    const id = parseId(req.params.id, 'id');
+    const { rows: [prod] } = await q(
+      `SELECT p.*, c.nome AS categoria_nome, c.cor AS categoria_cor
+       FROM   produtos p
+       LEFT   JOIN categorias c ON c.id = p.categoria_id
+       WHERE  p.id = $1 AND p.ativo = TRUE`,
+      [id]
+    );
+    if (!prod) return res.status(404).json({ error: 'Produto não encontrado' });
+    res.json(prod);
+  });
+
   app.post('/api/produtos', async (req, res) => {
     const { codigo, nome, descricao, categoria_id, unidade,
             quantidade, qtd_minima, preco_custo, localizacao } = req.body;

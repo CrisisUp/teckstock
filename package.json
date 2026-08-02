@@ -1,4 +1,9 @@
 {
+  "name": "teckstock",
+  "private": true,
+  "scripts": {
+    "test:e2e": "cd e2e && npx playwright test"
+  },
   "dependencies": {
     "prom-client": "^15.1.3"
   }

@@ -490,7 +490,10 @@ async function openNovo() {
 
   setCodReadonly(document.getElementById('p-cod'));
   openModal('ov-prod');
-  gerarCodigo('');
+  // await: garante que o código já foi gerado antes de o usuário salvar.
+  // Sem isso, salvar cedo gerava o mesmo código em requisições concorrentes
+  // (corrida) → violação de unicidade "produtos_codigo_key".
+  await gerarCodigo('');
 }
 
 function openEdit(p) {

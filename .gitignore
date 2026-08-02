@@ -4,6 +4,12 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# ── Playwright (testes E2E) ─────────────────────────────────────────────────
+# Artefatos de execução — regenerados a cada run, não versionar
+e2e/test-results/
+e2e/playwright-report/
+e2e/.last-run.json
+
 # ── Terraform ────────────────────────────────────────────────────────────────
 # Diretórios e estado NÃO devem ir pro git (contêm dados sensíveis de infra)
 **/.terraform/

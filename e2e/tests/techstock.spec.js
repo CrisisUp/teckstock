@@ -1,0 +1,258 @@
+// @ts-check
+const { test, expect } = require('@playwright/test');
+const { Pool } = require('pg');
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+// Dados de teste com prefixo único para não colidir com os seeds do banco.
+const PREFIX = 'e2e' + Date.now().toString().slice(-6);
+const NOVO_NOME = `${PREFIX} Produto E2E`;
+const NOVO_CODIGO = `${PREFIX}`;
+
+// Conexão direta ao banco local para LIMPEZA DEFINITIVA.
+// O DELETE da API é soft-delete (ativo=false) e não libera o código para reuso
+// (a UNIQUE constraint o mantém ocupado). Para o teste poder rodar várias vezes,
+// apagamos de vez via SQL.
+const pool = new Pool({
+  host: process.env.DB_HOST || '127.0.0.1',
+  port: Number(process.env.DB_PORT) || 5432,
+  database: process.env.DB_NAME || 'techstock',
+  user: process.env.DB_USER || 'techstock_user',
+  password: process.env.DB_PASSWORD || '',
+});
+
+// Apaga os produtos de teste (e seus movimentos) de forma definitiva
+async function limpaTestes() {
+  await pool.query(
+    `DELETE FROM movimentos WHERE produto_id IN (
+       SELECT id FROM produtos
+       WHERE codigo = $1 OR codigo = $2 OR nome LIKE $3
+     )`,
+    [NOVO_CODIGO, globalThis.__codigoGerado || '', `%${PREFIX}%`]
+  );
+  await pool.query(
+    `DELETE FROM produtos
+     WHERE codigo = $1 OR codigo = $2 OR nome LIKE $3`,
+    [NOVO_CODIGO, globalThis.__codigoGerado || '', `%${PREFIX}%`]
+  );
+}
+
+test.afterAll(async () => {
+  await limpaTestes();
+  await pool.end();
+});
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+test('dashboard carrega cards e tabela de itens críticos', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  // Cards principais
+  await expect(page.locator('#s-total')).toContainText(/\d+/);
+  await expect(page.locator('#s-valor')).toContainText(/R\$/);
+  await expect(page.locator('#s-alert')).toContainText(/\d+/);
+
+  // Tabela de itens críticos populada (com dados de seed, pelo menos 1)
+  const linhas = page.locator('#dash-tb tr');
+  await expect(linhas.first()).toBeVisible();
+});
+
+test('badge da API fica Online', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  const badge = page.locator('#api-badge');
+  await expect(badge).toContainText(/API Online|API Degradada/);
+});
+
+// ── Navegação ────────────────────────────────────────────────────────────────
+test('navega entre as páginas', async ({ page }) => {
+  await page.goto('/');
+
+  // Produtos
+  await page.getByRole('button', { name: /Produtos/ }).click();
+  await expect(page.locator('#page-produtos')).toHaveClass(/active/);
+  await expect(page.locator('#prod-tb tr').first()).toBeVisible();
+
+  // Movimentações
+  await page.getByRole('button', { name: /Movimentações/ }).click();
+  await expect(page.locator('#page-movimentacoes')).toHaveClass(/active/);
+
+  // Alertas
+  await page.getByRole('button', { name: /Alertas/ }).click();
+  await expect(page.locator('#page-alertas')).toHaveClass(/active/);
+
+  // Dashboard
+  await page.getByRole('button', { name: /Dashboard/ }).click();
+  await expect(page.locator('#page-dashboard')).toHaveClass(/active/);
+});
+
+// ── CRUD Produto ─────────────────────────────────────────────────────────────
+test('cria um produto novo', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Produtos/ }).click();
+
+  // Abre o modal "Novo Produto"
+  await page.getByRole('button', { name: /Novo/ }).click();
+  await expect(page.locator('#ov-prod')).toHaveClass(/open/);
+
+  // Preenche (p-cod é readonly e auto-gerado pelo app — NÃO preenchemos;
+  // o código gerado é capturado para a limpeza)
+  await page.locator('#p-nome').fill(NOVO_NOME);
+  await page.locator('#p-qty').fill('5');
+  await page.locator('#p-min').fill('2');
+  await page.locator('#p-custo').fill('10.50');
+  // lê o código auto-gerado (ex: TI-043) para poder limpar depois
+  const codigoGerado = await page.locator('#p-cod').inputValue();
+  if (codigoGerado && !codigoGerado.includes('…')) {
+    globalThis.__codigoGerado = codigoGerado;
+  }
+
+  // Captura qualquer alert() de erro do saveProd para diagnóstico
+  const erros = [];
+  page.on('dialog', async (dialog) => {
+    erros.push(dialog.message());
+    await dialog.accept();
+  });
+
+  // Captura TODOS os POSTs ao /api/produtos para diagnosticar colisões
+  const posts = [];
+  page.on('request', (req) => {
+    if (req.url().includes('/api/produtos') && req.method() === 'POST') {
+      posts.push({ url: req.url(), corpo: req.postData() });
+    }
+  });
+
+  // Captura a resposta real do POST (para diagnóstico)
+  const respostaPost = page.waitForResponse(
+    (r) => r.url().includes('/api/produtos') && r.request().method() === 'POST'
+  );
+
+  // Salva
+  await page.getByRole('button', { name: /Salvar/ }).click();
+  const resp = await respostaPost;
+  const statusPost = resp.status();
+  const corpoPost = await resp.text();
+
+  if (erros.length) throw new Error('Alert de erro no save: ' + erros.join(' | ') + ' | corpo: ' + corpoPost + ' | status: ' + statusPost);
+  if (statusPost !== 201) {
+    throw new Error(`POST /api/produtos retornou ${statusPost}: ${corpoPost}`);
+  }
+
+  // Espera o modal fechar (closeModal roda após o POST ok)
+  await expect(page.locator('#ov-prod')).not.toHaveClass(/open/, { timeout: 5000 });
+
+  // Busca o produto criado e confirma na tabela
+  await page.locator('#busca').fill(NOVO_NOME);
+  await page.waitForTimeout(500); // debounce 400ms
+  await expect(page.locator('#prod-tb')).toContainText(NOVO_NOME);
+});
+
+test('edita um produto existente (seed)', async ({ page }) => {
+  // Independente do teste de criação: usa um produto dos seeds (sempre presente)
+  const res = await fetch('http://localhost:3000/api/produtos');
+  const produtos = await res.json();
+  const alvo = produtos.find((p) => p.codigo === 'TI-001') || produtos[0];
+  if (!alvo) test.skip();
+
+  await page.goto('/');
+  await page.getByRole('button', { name: /Produtos/ }).click();
+
+  // Busca e clica em Editar (✏️)
+  await page.locator('#busca').fill(alvo.nome);
+  await page.waitForTimeout(500);
+  const row = page.locator('#prod-tb tr', { hasText: alvo.nome });
+  await row.getByTitle('Editar').click();
+  await expect(page.locator('#ov-prod')).toHaveClass(/open/);
+
+  // Muda a descrição e salva
+  await page.locator('#p-desc').fill('Editado pelo teste E2E');
+  await page.getByRole('button', { name: /Salvar/ }).click();
+  await expect(page.locator('#ov-prod')).not.toHaveClass(/open/);
+
+  // Confirma que a descrição aparece
+  await page.waitForTimeout(500);
+  await expect(page.locator('#prod-tb')).toContainText('Editado pelo teste E2E');
+
+  // Restaura a descrição original via API (não deixar resíduo no seed)
+  await fetch(`http://localhost:3000/api/produtos/${alvo.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      nome: alvo.nome,
+      descricao: alvo.descricao || '',
+      categoria_id: alvo.categoria_id,
+      unidade: alvo.unidade,
+      qtd_minima: alvo.qtd_minima,
+      preco_custo: alvo.preco_custo,
+      localizacao: alvo.localizacao,
+    }),
+  });
+});
+
+// ── Movimentação ─────────────────────────────────────────────────────────────
+test('registra uma movimentação de entrada', async ({ page }) => {
+  // Usa o primeiro produto do seed (Cabo USB-C, id=1) para não depender do teste anterior
+  const res = await fetch('http://localhost:3000/api/produtos/1');
+  const produto = await res.json();
+  const qtdAntes = produto.quantidade;
+
+  await page.goto('/');
+  await page.getByRole('button', { name: /Produtos/ }).click();
+  await page.locator('#busca').fill(produto.nome);
+  await page.waitForTimeout(500);
+
+  const row = page.locator('#prod-tb tr', { hasText: produto.nome });
+  await row.getByTitle('Movimentar').click();
+  await expect(page.locator('#ov-mov')).toHaveClass(/open/);
+
+  // Tipo entrada + qtd 1
+  await page.locator('#m-tipo').selectOption('entrada');
+  await page.locator('#m-qty').fill('1');
+  await page.locator('#m-motivo').fill('Teste E2E UI');
+  await page.getByRole('button', { name: /Confirmar/ }).click();
+  await expect(page.locator('#ov-mov')).not.toHaveClass(/open/);
+
+  // Confirma que a quantidade subiu (recarrega via API)
+  const depois = await (await fetch('http://localhost:3000/api/produtos/1')).json();
+  expect(depois.quantidade).toBe(qtdAntes + 1);
+});
+
+test('validação de estoque insuficiente mostra erro', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Produtos/ }).click();
+
+  // Usa produto com qtd pequena (Teclado ABNT2, id=3, qtd=3)
+  const res = await fetch('http://localhost:3000/api/produtos/3');
+  const produto = await res.json();
+
+  await page.locator('#busca').fill(produto.nome);
+  await page.waitForTimeout(500);
+  const row = page.locator('#prod-tb tr', { hasText: produto.nome });
+  await row.getByTitle('Movimentar').click();
+
+  await page.locator('#m-tipo').selectOption('saida');
+  await page.locator('#m-qty').fill('99999');
+
+  // Registra o handler do alert() ANTES do clique (o alert dispara no click)
+  const dialogo = page.waitForEvent('dialog');
+  await page.getByRole('button', { name: /Confirmar/ }).click();
+  const dialog = await dialogo;
+  expect(dialog.message()).toContain('Estoque insuficiente');
+  await dialog.accept();
+
+  // Modal permanece aberto (erro não fecha)
+  await expect(page.locator('#ov-mov')).toHaveClass(/open/);
+});
+
+// ── Busca ────────────────────────────────────────────────────────────────────
+test('busca filtra produtos', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Produtos/ }).click();
+
+  await page.locator('#busca').fill('Cabo');
+  await page.waitForTimeout(500);
+
+  // Deve mostrar o Cabo USB-C e nenhum outro
+  const linhas = await page.locator('#prod-tb tr').allInnerTexts();
+  const temCabo = linhas.some((l) => l.includes('Cabo'));
+  expect(temCabo).toBe(true);
+});
