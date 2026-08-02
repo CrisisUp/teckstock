@@ -21,31 +21,64 @@ const path       = require('path');
 const os         = require('os');
 
 // ── AWS Secrets Manager ───────────────────────────────────────────────────────
-// Carrega variáveis sensíveis do Secrets Manager antes de qualquer uso de process.env
+// Carrega variáveis sensíveis do Secrets Manager antes de qualquer uso de process.env.
+// Com retry/backoff e fail-fast: se os segredos essenciais não estiverem
+// disponíveis após as tentativas, aborta o boot em vez de subir quebrado.
 async function loadSecrets() {
   const secretName = process.env.TECHSTOCK_SECRET_NAME;
   const region     = process.env.AWS_REGION || 'us-east-1';
 
+  // Secrets essenciais que o app não consegue operar sem (devem vir do secret
+  // OU de variáveis de ambiente já definidas no deploy).
+  const CRITICAIS = ['DB_HOST', 'DB_PASSWORD'];
+
+  const temCriticais = () => CRITICAIS.every(k => process.env[k]);
+
   if (!secretName) {
     console.log('[Secrets] TECHSTOCK_SECRET_NAME não definido — usando variáveis do ambiente');
+    if (!temCriticais()) {
+      console.error('[Secrets] CRÍTICO: DB_HOST/DB_PASSWORD não definidos no ambiente');
+      process.exit(1);
+    }
     return;
   }
 
-  try {
-    const { SecretsManagerClient, GetSecretValueCommand } =
-      require('@aws-sdk/client-secrets-manager');
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const { SecretsManagerClient, GetSecretValueCommand } =
+    require('@aws-sdk/client-secrets-manager');
 
-    const client = new SecretsManagerClient({ region });
-    const cmd    = new GetSecretValueCommand({ SecretId: secretName });
-    const resp   = await client.send(cmd);
-    const secret = JSON.parse(resp.SecretString);
+  const client = new SecretsManagerClient({ region });
 
-    Object.entries(secret).forEach(([k, v]) => { process.env[k] = v; });
-    console.log(`[Secrets] Carregado: ${secretName} (${Object.keys(secret).length} variáveis)`);
-  } catch (err) {
-    console.warn(`[Secrets] Falha ao ler secret: ${err.message}`);
-    console.warn('[Secrets] Usando variáveis do ambiente como fallback');
+  // 3 tentativas com backoff (2s, 4s) — Secrets Manager pode falhar por
+  // throttling/transitório no boot de várias EC2 simultâneas.
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const cmd  = new GetSecretValueCommand({ SecretId: secretName });
+      const resp = await client.send(cmd);
+      const secret = JSON.parse(resp.SecretString);
+
+      Object.entries(secret).forEach(([k, v]) => { process.env[k] = v; });
+      console.log(`[Secrets] Carregado: ${secretName} (${Object.keys(secret).length} variáveis)`);
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < 3) {
+        const delay = attempt * 2000;
+        console.warn(`[Secrets] Tentativa ${attempt}/3 falhou (${err.message}) — retry em ${delay}ms`);
+        await sleep(delay);
+      }
+    }
   }
+
+  console.error(`[Secrets] Falha após 3 tentativas: ${lastErr.message}`);
+
+  if (!temCriticais()) {
+    console.error('[Secrets] CRÍTICO: DB_HOST/DB_PASSWORD não disponíveis — abortando boot');
+    process.exit(1);
+  }
+
+  console.warn('[Secrets] Usando variáveis do ambiente como fallback (DB_HOST/DB_PASSWORD presentes)');
 }
 
 // ── Bootstrap assíncrono ──────────────────────────────────────────────────────
