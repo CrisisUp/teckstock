@@ -231,14 +231,14 @@ async function loadProd() {
     tb.innerHTML = rows.map(p => `<tr>
       <td>${codeBadge(p.codigo)}</td>
       <td>
-        <div style="font-weight:500">${esc(p.nome)}</div>
-        ${p.descricao ? `<div style="font-size:12px;color:var(--muted)">${esc(p.descricao)}</div>` : ''}
+        <div class="fw-500">${esc(p.nome)}</div>
+        ${p.descricao ? `<div class="muted-sm">${esc(p.descricao)}</div>` : ''}
       </td>
       <td>${catBadge(p.categoria_nome, p.categoria_cor)}</td>
       <td>${esc(p.localizacao || '—')}</td>
       <td>${qBar(p.quantidade, p.qtd_minima)}</td>
       <td>R$ ${Number(p.preco_custo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-      <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+      <td><div class="btn-group">
         <button class="btn btn-sm btn-g" data-id="${p.id}" onclick="openMovById(this)" title="Movimentar" aria-label="Movimentar ${esc(p.nome)}">↕</button>
         <button class="btn btn-sm btn-o" data-id="${p.id}" onclick="openHistById(this)" title="Histórico" aria-label="Histórico de ${esc(p.nome)}">📋</button>
         <button class="btn btn-sm btn-o" data-id="${p.id}" onclick="openEditById(this)" title="Editar" aria-label="Editar ${esc(p.nome)}">✏️</button>
@@ -333,10 +333,10 @@ async function _fetchMovs() {
         <td>${dt}</td>
         <td><span class="badge ${tipoCls[m.tipo]}">${icons[m.tipo]} ${m.tipo.toUpperCase()}</span></td>
         <td><strong>${esc(pNome)}</strong></td>
-        <td style="text-align:center">${m.quantidade_anterior ?? '—'}</td>
-        <td style="text-align:center;font-weight:700" class="${cls}">${delta}</td>
-        <td style="text-align:center">${m.quantidade_nova ?? '—'}</td>
-        <td style="color:var(--muted);font-size:12px">${esc(m.motivo || '—')} · ${esc(m.responsavel || '—')}</td>
+        <td class="ta-center">${m.quantidade_anterior ?? '—'}</td>
+        <td class="ta-center fw-700">${delta}</td>
+        <td class="ta-center">${m.quantidade_nova ?? '—'}</td>
+        <td class="muted-sm">${esc(m.motivo || '—')} · ${esc(m.responsavel || '—')}</td>
       </tr>`;
     }).join('');
   }
@@ -519,7 +519,7 @@ function openEdit(p) {
     'border:1px solid #E2E8F0;border-radius:8px;padding:8px 12px;font-size:14px;';
   const hint = document.getElementById('p-qty-hint');
   if (hint) hint.innerHTML =
-    `<span style="font-size:11px;color:var(--muted)">Use o botão ↕ para movimentar estoque</span>`;
+    `<span class="muted-sm" style="font-size:11px">Use o botão ↕ para movimentar estoque</span>`;
 
   const cod = document.getElementById('p-cod');
   cod.value = p.codigo;
@@ -630,11 +630,11 @@ async function saveMov() {
 async function openHist(id) {
   openModal('ov-hist');
   const b = document.getElementById('hist-body');
-  b.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)"><span class="spin"></span>Carregando...</div>';
+  b.innerHTML = '<div class="center-box"><span class="spin"></span>Carregando...</div>';
   try {
     const movs = await api(`/api/movimentos/${id}`);
     if (!movs.length) {
-      b.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Sem movimentos</div>';
+      b.innerHTML = '<div class="center-box">Sem movimentos</div>';
       return;
     }
     const icons = { entrada: '📥', saida: '📤', ajuste: '⚖️' };
@@ -655,7 +655,7 @@ async function openHist(id) {
       </div>`;
     }).join('');
   } catch (e) {
-    b.innerHTML = `<div style="color:var(--red);text-align:center;padding:20px">Erro: ${esc(e.message)}</div>`;
+    b.innerHTML = `<div class="center-box" style="color:var(--red)">Erro: ${esc(e.message)}</div>`;
   }
 }
 

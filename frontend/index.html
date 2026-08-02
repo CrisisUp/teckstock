@@ -37,7 +37,7 @@
     <div class="card"><div class="card-icon">💰</div><div class="card-label">Valor em Estoque</div><div class="card-value ok" id="s-valor">—</div></div>
     <div class="card"><div class="card-icon">🔄</div><div class="card-label">Mov. 24h</div><div class="card-value" id="s-mov">—</div></div>
   </div>
-  <div class="banner hidden" id="banner">⚠️ <span id="banner-txt"></span><button class="btn btn-sm btn-o" style="margin-left:auto" onclick="showPage('alertas')">Ver alertas</button></div>
+  <div class="banner hidden" id="banner">⚠️ <span id="banner-txt"></span><button class="btn btn-sm btn-o ml-auto" onclick="showPage('alertas')">Ver alertas</button></div>
   <div class="tw">
     <div class="th"><h2>Itens Críticos</h2></div>
     <table><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Local</th><th>Estoque</th></tr></thead>
@@ -66,23 +66,23 @@
   <div class="tw">
     <div class="th">
       <h2>🔄 Movimentações</h2>
-      <div class="ta" style="flex-wrap:wrap;gap:8px">
-        <select class="inp" id="mn-tipo" onchange="_fetchMovs()" style="min-width:150px">
+      <div class="ta gap-8">
+        <select class="inp minw-150" id="mn-tipo" onchange="_fetchMovs()">
           <option value="">Todos os tipos</option>
           <option value="entrada">📥 Entrada</option>
           <option value="saida">📤 Saída</option>
           <option value="ajuste">⚖️ Ajuste</option>
         </select>
-        <select class="inp" id="mn-cat" onchange="_fetchMovs()" style="min-width:180px">
+        <select class="inp minw-180" id="mn-cat" onchange="_fetchMovs()">
           <option value="">Todas categorias</option>
         </select>
-        <select class="inp" id="mn-prod" onchange="_fetchMovs()" style="min-width:220px">
+        <select class="inp minw-220" id="mn-prod" onchange="_fetchMovs()">
           <option value="">Todos os produtos</option>
         </select>
         <button class="btn btn-p" onclick="abrirNovaMovimentacao()">+ Nova Movimentação</button>
       </div>
     </div>
-    <div style="padding:6px 0 4px;font-size:13px;color:var(--muted)">
+    <div class="mov-count">
       <span id="mov-count"></span>
     </div>
     <table>
@@ -91,9 +91,9 @@
           <th>Data/Hora</th>
           <th>Tipo</th>
           <th>Produto</th>
-          <th style="text-align:center">Qtd Anterior</th>
-          <th style="text-align:center">Movimentação</th>
-          <th style="text-align:center">Qtd Nova</th>
+          <th class="ta-center">Qtd Anterior</th>
+          <th class="ta-center">Movimentação</th>
+          <th class="ta-center">Qtd Nova</th>
           <th>Motivo · Responsável</th>
         </tr>
       </thead>
@@ -121,7 +121,7 @@
       <input type="hidden" id="p-id">
       <div class="fr">
         <div class="fg">
-          <label>Código <span style="font-size:11px;color:var(--muted);font-weight:400">(gerado automaticamente)</span></label>
+          <label>Código <span class="muted-note">(gerado automaticamente)</span></label>
           <input class="inp" id="p-cod" readonly
             style="background:#F1F5F9;color:#64748B;cursor:default"
             placeholder="Selecione a categoria…">
@@ -144,7 +144,7 @@
         <div class="fg">
           <label>Qtd. Inicial</label>
           <input class="inp" type="number" id="p-qty" value="0" min="0">
-          <div id="p-qty-hint" style="margin-top:4px;min-height:16px"></div>
+          <div id="p-qty-hint" class="field-hint"></div>
         </div>
         <div class="fg"><label>Qtd. Mínima</label><input class="inp" type="number" id="p-min" value="5" min="0"></div>
       </div>
@@ -163,7 +163,7 @@
     <div class="mh"><h3>Movimentar Estoque</h3><button class="mclose" onclick="closeModal('ov-mov')">✕</button></div>
     <div class="mb">
       <input type="hidden" id="m-pid">
-      <div class="fg"><label>Produto</label><div id="m-pnome" style="font-weight:600;font-size:15px;padding:6px 0"></div></div>
+      <div class="fg"><label>Produto</label><div id="m-pnome" class="pnome-txt"></div></div>
       <div class="fr">
         <div class="fg"><label>Tipo *</label>
           <select class="inp" id="m-tipo">
@@ -195,7 +195,7 @@
         <select class="inp" id="mn-mov-psel" onchange="onMovProdSelect()">
           <option value="">Selecione o produto...</option>
         </select>
-        <div id="mn-mov-pnome" style="font-size:12px;color:var(--muted);margin-top:4px;min-height:16px"></div>
+        <div id="mn-mov-pnome" class="field-hint muted-sm"></div>
       </div>
       <div class="fr">
         <div class="fg"><label>Tipo *</label>
@@ -221,7 +221,7 @@
 <div class="ov" id="ov-hist" role="dialog" aria-modal="true" aria-label="Histórico de movimentos">
   <div class="modal" style="max-width:460px">
     <div class="mh"><h3>Histórico de Movimentos</h3><button class="mclose" onclick="closeModal('ov-hist')">✕</button></div>
-    <div class="mb" id="hist-body"><div class="empty" style="text-align:center;padding:30px"><span class="spin"></span>Carregando...</div></div>
+    <div class="mb" id="hist-body"><div class="empty center-box"><span class="spin"></span>Carregando...</div></div>
   </div>
 </div>
 
@@ -234,7 +234,7 @@
         <div class="cfg-section-label">🔵 Backend / API</div>
         <div class="fg">
           <label>URL do Backend (DNS do ALB)</label>
-          <input class="inp" id="cfg-url" placeholder="http://SEU-ALB.us-east-1.elb.amazonaws.com" style="width:100%">
+          <input class="inp cfg-input" id="cfg-url" placeholder="http://SEU-ALB.us-east-1.elb.amazonaws.com">
           <div class="url-cur">Atual: <span id="cfg-atual"></span></div>
           <div class="hint">DNS do ALB sem barra no final. Salvo no localStorage.</div>
         </div>
@@ -244,7 +244,7 @@
         <div class="cfg-section-label">🟠 Grafana</div>
         <div class="fg">
           <label>URL do Grafana</label>
-          <input class="inp" id="cfg-graf-url" placeholder="http://SEU-ALB.us-east-1.elb.amazonaws.com/grafana" style="width:100%">
+          <input class="inp cfg-input" id="cfg-graf-url" placeholder="http://SEU-ALB.us-east-1.elb.amazonaws.com/grafana">
           <div class="url-cur">Atual: <span id="cfg-graf-atual"></span></div>
           <div class="hint">URL completa incluindo /grafana. Clique no badge ⬤ Grafana para abrir em nova aba.</div>
         </div>
@@ -254,7 +254,7 @@
         <div class="cfg-section-label">🔴 Prometheus</div>
         <div class="fg">
           <label>URL do Prometheus</label>
-          <input class="inp" id="cfg-prom-url" placeholder="http://SEU-ALB.us-east-1.elb.amazonaws.com/prometheus" style="width:100%">
+          <input class="inp cfg-input" id="cfg-prom-url" placeholder="http://SEU-ALB.us-east-1.elb.amazonaws.com/prometheus">
           <div class="url-cur">Atual: <span id="cfg-prom-atual"></span></div>
           <div class="hint">URL completa incluindo /prometheus. Clique no badge ⬤ Prometheus para abrir em nova aba.</div>
         </div>
