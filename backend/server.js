@@ -33,7 +33,9 @@ async function loadSecrets() {
   // OU de variáveis de ambiente já definidas no deploy).
   const CRITICAIS = ['DB_HOST', 'DB_PASSWORD'];
 
-  const temCriticais = () => CRITICAIS.every(k => process.env[k]);
+  // Verifica se a CHAVE existe no env (não se o valor é vazio) — no dev local
+  // com pg_hba 'trust', DB_PASSWORD vazio é legítimo e não deve abortar o boot.
+  const temCriticais = () => CRITICAIS.every(k => Object.prototype.hasOwnProperty.call(process.env, k));
 
   if (!secretName) {
     console.log('[Secrets] TECHSTOCK_SECRET_NAME não definido — usando variáveis do ambiente');
