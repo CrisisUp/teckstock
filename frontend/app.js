@@ -170,6 +170,7 @@ async function loadDash() {
     const [st, crit] = await Promise.all([
       api('/api/stats'),
       api('/api/produtos?alerta=1'),
+      loadGraficos(),   // gráficos do dashboard (não bloqueia o resto)
     ]);
     document.getElementById('s-total').textContent = st.total_produtos;
     document.getElementById('s-alert').textContent = st.alertas_estoque;
@@ -205,6 +206,55 @@ async function loadDash() {
     });
     document.getElementById('dash-tb').innerHTML = errRow(5, e.message);
   }
+}
+
+// ── Gráficos do dashboard (Chart.js) ────────────────────────────────────────
+let _grafCat = null, _grafMov = null;   // instâncias dos gráficos (destruir antes de recriar)
+
+async function loadGraficos() {
+  // Chart.js pode não carregar (CDN offline) — não quebra o dashboard
+  if (typeof Chart === 'undefined') return;
+  try {
+    const d = await api('/api/stats/graficos');
+
+    // Gráfico 1: estoque por categoria (pizza/donut)
+    if (_grafCat) _grafCat.destroy();
+    const elCat = document.getElementById('chart-categorias');
+    if (elCat && d.por_categoria.length) {
+      _grafCat = new Chart(elCat, {
+        type: 'doughnut',
+        data: {
+          labels: d.por_categoria.map(c => `${c.nome} (${c.produtos})`),
+          datasets: [{
+            data: d.por_categoria.map(c => c.quantidade),
+            backgroundColor: d.por_categoria.map(c => c.cor || '#94a3b8'),
+          }],
+        },
+        options: { plugins: { legend: { position: 'right' } }, maintainAspectRatio: false },
+      });
+    }
+
+    // Gráfico 2: movimentos por dia (barras, entrada/saída/ajuste)
+    if (_grafMov) _grafMov.destroy();
+    const elMov = document.getElementById('chart-movimentos');
+    if (elMov && d.movimentos_7dias.length) {
+      const dias = [...new Set(d.movimentos_7dias.map(m => m.dia))];
+      const tipos = ['entrada', 'saida', 'ajuste'];
+      const cores = { entrada: '#16a34a', saida: '#dc2626', ajuste: '#7c3aed' };
+      _grafMov = new Chart(elMov, {
+        type: 'bar',
+        data: {
+          labels: dias,
+          datasets: tipos.map(t => ({
+            label: t.charAt(0).toUpperCase() + t.slice(1),
+            data: dias.map(dia => (d.movimentos_7dias.find(m => m.dia === dia && m.tipo === t) || {}).n || 0),
+            backgroundColor: cores[t],
+          })),
+        },
+        options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, maintainAspectRatio: false },
+      });
+    }
+  } catch { /* gráficos são opcionais — não quebra o dashboard */ }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -803,6 +853,66 @@ function toast(msg, tipo = 'info') {
     el.style.transition = 'opacity .3s';
     setTimeout(() => el.remove(), 300);
   }, 3500);
+}
+
+// ── Exportação CSV ───────────────────────────────────────────────────────────
+// Exporta a lista filtrada atual (produtos ou movimentações).
+// CSV com ';' + BOM UTF-8 (abre certo no Excel pt-BR).
+function downloadCSV(nomeArquivo, linhas) {
+  const csv = '﻿' + linhas.map(l => l.join(';')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function exportarCSV(tipo) {
+  try {
+    if (tipo === 'produtos') {
+      // Usa o filtro atual (busca + categoria)
+      const pr = new URLSearchParams();
+      const b = document.getElementById('busca').value;
+      const c = document.getElementById('f-cat').value;
+      if (b) pr.set('busca', b);
+      if (c) pr.set('categoria_id', c);
+      pr.set('limite', 500);   // exporta até 500 (não paginado)
+      const resp = await api('/api/produtos?' + pr);
+      const rows = Array.isArray(resp) ? resp : resp.rows;
+      const cab = ['Código', 'Nome', 'Categoria', 'Localização', 'Quantidade', 'Mínimo', 'Preço Custo'];
+      const linhas = rows.map(p => [
+        p.codigo, p.nome, p.categoria_nome || '', p.localizacao || '',
+        p.quantidade, p.qtd_minima, p.preco_custo,
+      ]);
+      downloadCSV(`techstock-produtos-${new Date().toISOString().slice(0,10)}.csv`, [cab, ...linhas]);
+    } else {
+      // movimentos — usa o filtro atual (tipo + produto + categoria)
+      const pr = new URLSearchParams();
+      const tipo  = document.getElementById('mn-tipo')?.value || '';
+      const prod  = document.getElementById('mn-prod')?.value || '';
+      const cat   = document.getElementById('mn-cat')?.value || '';
+      if (tipo) pr.set('tipo', tipo);
+      if (prod) pr.set('produto_id', prod);
+      if (cat)  pr.set('categoria_id', cat);
+      pr.set('limite', 1000);
+      const rows = await api('/api/movimentos?' + pr);
+      const cab = ['Data', 'Tipo', 'Produto', 'Qtd', 'Anterior', 'Nova', 'Motivo', 'Responsável'];
+      const linhas = rows.map(m => [
+        new Date(m.criado_em).toLocaleString('pt-BR'),
+        m.tipo, m.produto_nome || m.produto_id,
+        m.quantidade, m.quantidade_anterior, m.quantidade_nova,
+        m.motivo || '', m.responsavel || '',
+      ]);
+      downloadCSV(`techstock-movimentos-${new Date().toISOString().slice(0,10)}.csv`, [cab, ...linhas]);
+    }
+    toast('Exportação gerada ✓', 'success');
+  } catch (e) {
+    toast('Erro ao exportar: ' + e.message, 'error');
+  }
 }
 
 // ── Modal de confirmação (substitui confirm() — não bloqueante) ─────────────

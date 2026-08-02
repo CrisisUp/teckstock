@@ -162,6 +162,12 @@ tr:hover td { background:#f8fafc; }
 .mov-count  { padding:6px 0 4px; font-size:13px; color:var(--muted); }
 .field-hint { margin-top:4px; min-height:16px; }
 
+/* ── Gráficos do dashboard ─────────────────────────────────────────────────── */
+.charts-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+.chart-wrap { padding:8px 16px 16px; position:relative; }
+.chart-wrap canvas { width:100% !important; height:auto !important; max-height:260px; }
+@media(max-width:768px) { .charts-row { grid-template-columns:1fr; } }
+
 /* ── Paginação ─────────────────────────────────────────────────────────────── */
 .pagination { display:flex; align-items:center; justify-content:center; gap:12px; padding:12px 16px; border-top:1px solid var(--border); }
 

@@ -239,7 +239,7 @@ async function bootstrap() {
 
     if (busca) {
       params.push(`%${busca}%`);
-      where.push(`(p.nome ILIKE $${params.length} OR p.codigo ILIKE $${params.length})`);
+      where.push(`(p.nome ILIKE $${params.length} OR p.codigo ILIKE $${params.length} OR p.localizacao ILIKE $${params.length})`);
     }
     if (categoria_id) {
       params.push(parseId(categoria_id, 'categoria_id'));
@@ -455,6 +455,37 @@ async function bootstrap() {
       alertas_estoque: Number(alertas.rows[0].n),
       valor_total:     Number(valor.rows[0].v),
       movimentos_hoje: Number(movHoje.rows[0].n),
+    });
+  });
+
+  // ── Stats para gráficos (dashboard) ─────────────────────────────────────────
+  app.get('/api/stats/graficos', async (_req, res) => {
+    // Estoque (quantidade) por categoria — produtos ativos
+    const [{ rows: porCategoria }] = await Promise.all([q(`
+      SELECT c.nome, c.cor, COALESCE(SUM(p.quantidade),0) AS quantidade,
+             COUNT(p.id) AS produtos
+      FROM   categorias c
+      LEFT   JOIN produtos p ON p.categoria_id = c.id AND p.ativo = TRUE
+      GROUP  BY c.id
+      ORDER  BY quantidade DESC
+    `)]);
+
+    // Movimentos por dia nos últimos 7 dias
+    const [{ rows: porDia }] = await Promise.all([q(`
+      SELECT TO_CHAR(criado_em, 'YYYY-MM-DD') AS dia, tipo, COUNT(*) AS n
+      FROM   movimentos
+      WHERE  criado_em >= NOW() - INTERVAL '7 days'
+      GROUP  BY dia, tipo
+      ORDER  BY dia
+    `)]);
+
+    res.json({
+      por_categoria: porCategoria.map(r => ({
+        nome: r.nome, cor: r.cor, quantidade: Number(r.quantidade), produtos: Number(r.produtos),
+      })),
+      movimentos_7dias: porDia.map(r => ({
+        dia: r.dia, tipo: r.tipo, n: Number(r.n),
+      })),
     });
   });
 

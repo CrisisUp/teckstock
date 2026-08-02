@@ -312,6 +312,34 @@ test('API de produtos suporta paginação (limite/offset/total)', async ({ reque
   expect(Array.isArray(all)).toBe(true);
 });
 
+// ── Features de produto: gráficos, CSV, busca por localização ───────────────
+test('rota de gráficos retorna agregados', async ({ request }) => {
+  const r = await request.get('/api/stats/graficos');
+  expect(r.status()).toBe(200);
+  const j = await r.json();
+  expect(Array.isArray(j.por_categoria)).toBe(true);
+  expect(j.por_categoria.length).toBeGreaterThanOrEqual(5);   // 5 categorias dos seeds
+  expect(Array.isArray(j.movimentos_7dias)).toBe(true);
+});
+
+test('busca inclui localização', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Produtos/ }).click();
+
+  // Cabo USB-C está em "A1-01"; busca por "A1" deve encontrá-lo
+  await page.locator('#busca').fill('A1-0');
+  await page.waitForTimeout(600);
+  const linhas = await page.locator('#prod-tb tr').allInnerTexts();
+  const temCabo = linhas.some((l) => l.includes('Cabo'));
+  expect(temCabo).toBe(true);
+});
+
+test('botão de exportar CSV existe nas páginas', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Produtos/ }).click();
+  await expect(page.getByRole('button', { name: /Exportar/ })).toBeVisible();
+});
+
 test('dark mode aplica variáveis escuras', async ({ page }) => {
   // Força prefers-color-scheme: dark
   await page.emulateMedia({ colorScheme: 'dark' });

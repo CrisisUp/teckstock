@@ -7,6 +7,7 @@
   <title>TechStock — Controle de Estoque</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -43,6 +44,16 @@
     <table><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Local</th><th>Estoque</th></tr></thead>
     <tbody id="dash-tb"><tr class="empty"><td colspan="5"><span class="spin"></span>Carregando...</td></tr></tbody></table>
   </div>
+  <div class="charts-row">
+    <div class="tw chart-box">
+      <div class="th"><h2>📦 Estoque por Categoria</h2></div>
+      <div class="chart-wrap"><canvas id="chart-categorias"></canvas></div>
+    </div>
+    <div class="tw chart-box">
+      <div class="th"><h2>🔄 Movimentos (7 dias)</h2></div>
+      <div class="chart-wrap"><canvas id="chart-movimentos"></canvas></div>
+    </div>
+  </div>
 </div>
 
 <!-- PRODUTOS -->
@@ -51,9 +62,10 @@
     <div class="th">
       <h2>Produtos</h2>
       <div class="ta">
-        <input class="inp inp-w" id="busca" placeholder="🔍 Nome ou código..." oninput="debounce(buscarProd,400)()" maxlength="100">
+        <input class="inp inp-w" id="busca" placeholder="🔍 Nome, código ou local..." oninput="debounce(buscarProd,400)()" maxlength="100">
         <select class="inp" id="f-cat" onchange="buscarProd()"><option value="">Todas categorias</option></select>
         <button class="btn btn-p" onclick="openNovo()">+ Novo</button>
+        <button class="btn btn-o" onclick="exportarCSV('produtos')" title="Exportar produtos em CSV">⬇ Exportar</button>
         <span id="prod-count" class="mov-count" style="margin:0"></span>
       </div>
     </div>
@@ -86,6 +98,7 @@
           <option value="">Todos os produtos</option>
         </select>
         <button class="btn btn-p" onclick="abrirNovaMovimentacao()">+ Nova Movimentação</button>
+        <button class="btn btn-o" onclick="exportarCSV('movimentos')" title="Exportar movimentações em CSV">⬇ Exportar</button>
       </div>
     </div>
     <div class="mov-count">
