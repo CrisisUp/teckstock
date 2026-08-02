@@ -32,11 +32,21 @@ async function api(path, opts = {}) {
     headers['x-api-key'] = localApiKey;
   }
 
-  const res = await fetch(base + path, {
-    ...opts,
-    headers,
-    signal: AbortSignal.timeout(10000)    
-  });
+  let res;
+  try {
+    res = await fetch(base + path, {
+      ...opts,
+      headers,
+      signal: AbortSignal.timeout(10000)
+    });
+  } catch (err) {
+    // Timeout do AbortSignal.timeout() dispara um AbortError — converte em
+    // mensagem amigável em vez do DOMException técnico em inglês.
+    if (err.name === 'AbortError') {
+      throw new Error('Tempo de resposta excedido (10s). Verifique se o backend está no ar.');
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
