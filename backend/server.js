@@ -177,7 +177,10 @@ async function bootstrap() {
 
   // ── Middlewares ─────────────────────────────────────────────────────────────
   app.use(express.json());
-  app.use(express.static(path.join(__dirname, 'public')));
+  // Serve o frontend (pasta ../frontend) na MESMA origem da API.
+  // Isso permite abrir http://localhost:3000/ e ver o app sem CORS, e sem
+  // precisar de servidor estático separado no desenvolvimento local.
+  app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
   // ── Métricas Prometheus ─────────────────────────────────────────────────────
   app.get('/metrics', async (_req, res) => {

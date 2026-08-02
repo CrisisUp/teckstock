@@ -26,8 +26,8 @@ pnpm-debug.log*
 .aws/
 
 # ── Arquivos gerados em deploy ───────────────────────────────────────────────
-# config.js é criado pelo setup-frontend.sh com a URL do ALB (conteúdo varia)
-frontend/config.js
+# NOTA: frontend/config.js agora é VERSIONADO como default (localhost).
+# Em produção o setup-frontend.sh sobrescreve com a URL do ALB.
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
