@@ -60,6 +60,19 @@ async function api(path, opts = {}) {
 // ══════════════════════════════════════════════════════════════════════════════
 let cats = [];
 const _prodCache = new Map();
+let _prodCacheTs = 0;               // timestamp do último preenchimento do cache
+const _PROD_CACHE_TTL = 60000;      // 60s — evita estoque desatualizado entre sessões
+
+// Garante que o cache está fresco (recarrega do backend se expirado).
+// Usado pelos handlers que leem um produto do cache para abrir modais.
+async function _ensureProdCache() {
+  const now = Date.now();
+  if (_prodCache.size > 0 && now - _prodCacheTs < _PROD_CACHE_TTL) return;
+  const rows = await api('/api/produtos');
+  _prodCache.clear();
+  rows.forEach(p => _prodCache.set(p.id, p));
+  _prodCacheTs = now;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MODAIS
@@ -209,6 +222,7 @@ async function loadProd() {
     const rows = await api('/api/produtos?' + pr);
     _prodCache.clear();
     rows.forEach(p => _prodCache.set(p.id, p));
+    _prodCacheTs = Date.now();
 
     if (!rows.length) {
       tb.innerHTML = '<tr class="empty"><td colspan="7">Nenhum produto encontrado</td></tr>';
@@ -236,8 +250,8 @@ async function loadProd() {
   }
 }
 
-function openEditById(btn) { const p = _prodCache.get(Number(btn.dataset.id)); if (p) openEdit(p); }
-function openMovById(btn)  { const p = _prodCache.get(Number(btn.dataset.id)); if (p) openMov(p.id, p.nome); }
+async function openEditById(btn) { await _ensureProdCache(); const p = _prodCache.get(Number(btn.dataset.id)); if (p) openEdit(p); }
+async function openMovById(btn)  { await _ensureProdCache(); const p = _prodCache.get(Number(btn.dataset.id)); if (p) openMov(p.id, p.nome); }
 function openHistById(btn) { openHist(Number(btn.dataset.id)); }
 function delProdById(btn)  { delProd(Number(btn.dataset.id), btn.dataset.nome); }
 
