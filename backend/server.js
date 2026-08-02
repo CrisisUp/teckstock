@@ -139,6 +139,44 @@ async function bootstrap() {
     finally { client.release(); }
   }
 
+  // ── Validação de inputs ─────────────────────────────────────────────────────
+  // Helpers centralizados: evitam 500s de erro de cast do Postgres quando o
+  // cliente envia tipo/valor inválido (devolvem 400 limpo).
+  function parseId(v, label = 'id') {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n <= 0) {
+      const err = new Error(`${label} inválido`);
+      err.status = 400;
+      throw err;
+    }
+    return n;
+  }
+
+  function parseNonNeg(v, label) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) {
+      const err = new Error(`${label} deve ser um número maior ou igual a zero`);
+      err.status = 400;
+      throw err;
+    }
+    return n;
+  }
+
+  function parseStr(v, label, max = 200) {
+    const s = String(v ?? '').trim();
+    if (!s) {
+      const err = new Error(`${label} é obrigatório`);
+      err.status = 400;
+      throw err;
+    }
+    if (s.length > max) {
+      const err = new Error(`${label} deve ter no máximo ${max} caracteres`);
+      err.status = 400;
+      throw err;
+    }
+    return s;
+  }
+
   // ── Middlewares ─────────────────────────────────────────────────────────────
   app.use(express.json());
   app.use(express.static(path.join(__dirname, 'public')));
@@ -177,10 +215,17 @@ async function bootstrap() {
 
   app.post('/api/categorias', async (req, res) => {
     const { nome, cor } = req.body;
-    if (!nome) return res.status(400).json({ error: 'nome é obrigatório' });
+    const n = parseStr(nome, 'nome', 80);
+    // cor opcional: valida formato hex curto (#RGB) ou longo (#RRGGBB)
+    const c = cor ? String(cor).trim() : '#6366f1';
+    if (!/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(c)) {
+      const e = new Error('cor deve estar no formato hex (#RRGGBB)');
+      e.status = 400;
+      throw e;
+    }
     const { rows } = await q(
       'INSERT INTO categorias (nome, cor) VALUES ($1, $2) RETURNING *',
-      [nome, cor || '#6366f1']
+      [n, c]
     );
     res.status(201).json(rows[0]);
   });
@@ -196,7 +241,7 @@ async function bootstrap() {
       where.push(`(p.nome ILIKE $${params.length} OR p.codigo ILIKE $${params.length})`);
     }
     if (categoria_id) {
-      params.push(Number(categoria_id));
+      params.push(parseId(categoria_id, 'categoria_id'));
       where.push(`p.categoria_id = $${params.length}`);
     }
     if (alerta === '1') {
@@ -217,38 +262,50 @@ async function bootstrap() {
     const { codigo, nome, descricao, categoria_id, unidade,
             quantidade, qtd_minima, preco_custo, localizacao } = req.body;
 
-    if (!codigo || !nome)
-      return res.status(400).json({ error: 'codigo e nome são obrigatórios' });
+    const c = parseStr(codigo, 'codigo', 30);
+    const n = parseStr(nome, 'nome', 120);
+    const un = unidade ? parseStr(unidade, 'unidade', 20) : 'un';
 
     const { rows } = await q(
       `INSERT INTO produtos
          (codigo,nome,descricao,categoria_id,unidade,quantidade,qtd_minima,preco_custo,localizacao)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [codigo, nome, descricao || null, categoria_id || null,
-       unidade || 'un', quantidade || 0, qtd_minima || 5,
-       preco_custo || 0, localizacao || null]
+      [c, n, descricao ? String(descricao).trim().slice(0, 2000) : null,
+       categoria_id ? parseId(categoria_id, 'categoria_id') : null,
+       un,
+       quantidade === undefined ? 0 : parseNonNeg(quantidade, 'quantidade'),
+       qtd_minima === undefined ? 5 : parseNonNeg(qtd_minima, 'qtd_minima'),
+       preco_custo === undefined ? 0 : parseNonNeg(preco_custo, 'preco_custo'),
+       localizacao ? String(localizacao).trim().slice(0, 60) : null]
     );
     res.status(201).json(rows[0]);
   });
 
   app.put('/api/produtos/:id', async (req, res) => {
+    const id = parseId(req.params.id, 'id');
     const { nome, descricao, categoria_id, unidade,
             qtd_minima, preco_custo, localizacao } = req.body;
+
+    const n = parseStr(nome, 'nome', 120);
+    const un = unidade ? parseStr(unidade, 'unidade', 20) : 'un';
 
     const { rows } = await q(
       `UPDATE produtos SET
          nome=$1, descricao=$2, categoria_id=$3, unidade=$4,
          qtd_minima=$5, preco_custo=$6, localizacao=$7
        WHERE id=$8 AND ativo=TRUE RETURNING *`,
-      [nome, descricao || null, categoria_id || null, unidade || 'un',
-       qtd_minima || 5, preco_custo || 0, localizacao || null, req.params.id]
+      [n, descricao ? String(descricao).trim().slice(0, 2000) : null,
+       categoria_id ? parseId(categoria_id, 'categoria_id') : null, un,
+       parseNonNeg(qtd_minima, 'qtd_minima'),
+       parseNonNeg(preco_custo, 'preco_custo'),
+       localizacao ? String(localizacao).trim().slice(0, 60) : null, id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Produto não encontrado' });
     res.json(rows[0]);
   });
 
   app.delete('/api/produtos/:id', async (req, res) => {
-    await q('UPDATE produtos SET ativo=FALSE WHERE id=$1', [req.params.id]);
+    await q('UPDATE produtos SET ativo=FALSE WHERE id=$1', [parseId(req.params.id, 'id')]);
     res.json({ ok: true });
   });
 
@@ -256,8 +313,16 @@ async function bootstrap() {
   app.post('/api/movimentos', async (req, res) => {
     const { produto_id, tipo, quantidade, motivo, responsavel } = req.body;
 
-    if (!produto_id || !tipo || !quantidade)
-      return res.status(400).json({ error: 'produto_id, tipo e quantidade são obrigatórios' });
+    const pid = parseId(produto_id, 'produto_id');
+    const tp  = ['entrada', 'saida', 'ajuste'].includes(tipo)
+      ? tipo
+      : (() => { const e = new Error('tipo deve ser entrada, saida ou ajuste'); e.status = 400; throw e; })();
+    const qty = Number(quantidade);
+    if (!Number.isInteger(qty) || qty <= 0) {
+      const e = new Error('quantidade deve ser um inteiro maior que zero');
+      e.status = 400;
+      throw e;
+    }
 
     const client = await pool.connect();
     try {
@@ -265,7 +330,7 @@ async function bootstrap() {
 
       const { rows: [prod] } = await client.query(
         'SELECT id, quantidade FROM produtos WHERE id=$1 AND ativo=TRUE FOR UPDATE',
-        [produto_id]
+        [pid]
       );
       if (!prod) {
         await client.query('ROLLBACK');
@@ -273,23 +338,24 @@ async function bootstrap() {
       }
 
       let nova;
-      if      (tipo === 'entrada') nova = prod.quantidade + Number(quantidade);
-      else if (tipo === 'saida')   nova = prod.quantidade - Number(quantidade);
-      else                         nova = Number(quantidade);
+      if      (tp === 'entrada') nova = prod.quantidade + qty;
+      else if (tp === 'saida')   nova = prod.quantidade - qty;
+      else                       nova = qty;
 
       if (nova < 0) {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'Estoque insuficiente' });
       }
 
-      await client.query('UPDATE produtos SET quantidade=$1 WHERE id=$2', [nova, produto_id]);
+      await client.query('UPDATE produtos SET quantidade=$1 WHERE id=$2', [nova, pid]);
 
       const { rows: [mov] } = await client.query(
         `INSERT INTO movimentos
            (produto_id,tipo,quantidade,quantidade_anterior,quantidade_nova,motivo,responsavel)
          VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-        [produto_id, tipo, Number(quantidade), prod.quantidade, nova,
-         motivo || null, responsavel || 'web']
+        [pid, tp, qty, prod.quantidade, nova,
+         motivo ? String(motivo).trim().slice(0, 200) : null,
+         responsavel ? String(responsavel).trim().slice(0, 80) : 'web']
       );
 
       await client.query('COMMIT');
@@ -302,14 +368,48 @@ async function bootstrap() {
     }
   });
 
+  // Lista movimentos com filtros opcionais (evita N+1 no frontend)
+  app.get('/api/movimentos', async (req, res) => {
+    const { tipo, produto_id, categoria_id } = req.query;
+    const params = [];
+    const where  = ['1 = 1'];
+
+    if (tipo) {
+      params.push(tipo);
+      where.push(`m.tipo = $${params.length}`);
+    }
+    if (produto_id) {
+      params.push(parseId(produto_id, 'produto_id'));
+      where.push(`m.produto_id = $${params.length}`);
+    }
+    if (categoria_id) {
+      params.push(parseId(categoria_id, 'categoria_id'));
+      where.push(`p.categoria_id = $${params.length}`);
+    }
+
+    const limite = Math.min(Math.max(Number(req.query.limite) || 200, 1), 1000);
+
+    const { rows } = await q(
+      `SELECT m.*, p.nome AS produto_nome, p.codigo AS produto_codigo
+       FROM   movimentos m
+       JOIN   produtos p ON p.id = m.produto_id
+       WHERE  ${where.join(' AND ')}
+       ORDER  BY m.criado_em DESC
+       LIMIT  ${limite}`,
+      params
+    );
+    res.json(rows);
+  });
+
   app.get('/api/movimentos/:produto_id', async (req, res) => {
+    const pid = parseId(req.params.produto_id, 'produto_id');
     const { rows } = await q(
       `SELECT m.*, p.nome AS produto_nome, p.codigo AS produto_codigo
        FROM   movimentos m
        JOIN   produtos p ON p.id = m.produto_id
        WHERE  m.produto_id = $1
        ORDER  BY m.criado_em DESC LIMIT 50`,
-      [req.params.produto_id]
+      [pid]
     );
     res.json(rows);
   });

@@ -326,11 +326,10 @@ echo ""
 echo "--- [3/8] Baixando arquivos do GitHub ---"
 if [[ -n "$GITHUB_BASE" ]]; then
   mkdir -p $APP_DIR
-  for f in server.js package.json schema.sql; do
+  for f in server.js package.json schema.sql package-lock.json; do
     echo "  baixando $f..."
-    wget -q -O $APP_DIR/$f "$GITHUB_BASE/$f" && echo "  ✓ $f" || echo "  ✗ $f"
+    wget -q -O $APP_DIR/$f "$GITHUB_BASE/$f" && echo "  ✓ $f" || echo "  ✗ $f (opcional para lock)"
   done
-  wget -q -O $APP_DIR/package-lock.json "$GITHUB_BASE/package-lock.json" 2>/dev/null || true
   ls -la $APP_DIR/
 else
   echo "Copie os arquivos para $APP_DIR/ e pressione Enter..."

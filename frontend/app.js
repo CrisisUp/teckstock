@@ -259,8 +259,6 @@ async function loadAlert() {
 // ══════════════════════════════════════════════════════════════════════════════
 // MOVIMENTAÇÕES — PÁGINA DEDICADA
 // ══════════════════════════════════════════════════════════════════════════════
-let _movFiltro = { tipo: '', produto: '', cat: '' };
-
 async function loadMovPage() {
   // Popula select de produtos
   await _loadMovProdSelect();
@@ -285,6 +283,7 @@ async function _fetchMovs() {
 
   const tipo   = document.getElementById('mn-tipo')?.value || '';
   const prodId = document.getElementById('mn-prod')?.value || '';
+  const catId  = document.getElementById('mn-cat')?.value || '';
 
   const icons  = { entrada: '📥', saida: '📤', ajuste: '⚖️' };
   const tipoCls = { entrada: 'b-ok', saida: 'b-bad', ajuste: 'b-warn' };
@@ -303,7 +302,6 @@ async function _fetchMovs() {
                   :                        `→${m.quantidade_nova ?? m.quantidade}`;
       const cls = m.tipo === 'entrada' ? 'pos' : m.tipo === 'saida' ? 'neg' : '';
       const dt  = new Date(m.criado_em).toLocaleString('pt-BR');
-      
       const pNome = m.produto_nome
         || (_prodCache.get(Number(m.produto_id))?.nome)
         || String(m.produto_id || '—');
@@ -320,21 +318,14 @@ async function _fetchMovs() {
   }
 
   try {
-    if (prodId) {
-      const rows = await api(`/api/movimentos/${prodId}`);
-      renderRows(rows);
-    } else {
-      // CORREÇÃO: Popula o cache caso o usuário entre direto nesta aba
-      if (!_prodCache.size) {
-        const prods = await api('/api/produtos');
-        prods.forEach(p => _prodCache.set(p.id, p));
-      }
-      const ids = [..._prodCache.keys()];
-      const results = await Promise.all(
-        ids.map(id => api(`/api/movimentos/${id}`).catch(() => []))
-      );
-      renderRows(results.flat());
-    }
+    // Única chamada: filtros aplicados no backend (evita N+1 de /api/movimentos/:id)
+    const pr = new URLSearchParams();
+    if (tipo)   pr.set('tipo', tipo);
+    if (prodId) pr.set('produto_id', prodId);
+    if (catId)  pr.set('categoria_id', catId);
+    const qs = pr.toString();
+    const rows = await api('/api/movimentos' + (qs ? '?' + qs : ''));
+    renderRows(rows);
   } catch (e) {
     tb.innerHTML = errRow(7, e.message);
   }
