@@ -45,6 +45,10 @@ async function api(path, opts = {}) {
     if (err.name === 'AbortError') {
       throw new Error('Tempo de resposta excedido (10s). Verifique se o backend está no ar.');
     }
+    // TypeError "Failed to fetch" = rede/offline/backend inalcançável
+    if (err instanceof TypeError) {
+      throw new Error('Não foi possível conectar ao backend. Verifique sua conexão.');
+    }
     throw err;
   }
 
@@ -107,6 +111,18 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCats();
   loadDash();
   setInterval(checkApi, 30000);
+
+  // F24 — Reage imediatamente a mudanças de conectividade (não espera o timer):
+  // ao voltar online, re-verifica a API na hora e avisa o usuário.
+  window.addEventListener('online', () => {
+    checkApi();
+    toast('Conexão restabelecida ✓', 'success');
+  });
+  window.addEventListener('offline', () => {
+    toast('Você está offline — sem acesso ao backend.', 'error');
+    const el = document.getElementById('api-badge');
+    if (el) { el.className = 'api-badge fail'; el.textContent = '⬤ Offline'; }
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

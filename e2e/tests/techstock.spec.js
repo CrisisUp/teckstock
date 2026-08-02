@@ -281,6 +281,17 @@ test('favicon é servido', async ({ request }) => {
   expect(res.headers()['content-type']).toContain('image/svg+xml');
 });
 
+test('erro de rede mostra mensagem amigável (F23)', async ({ page }) => {
+  // Intercepta a rota da API e falha com erro de rede (Failed to fetch)
+  await page.route('**/api/health', (route) => route.abort('failed'));
+  await page.goto('/');
+  await page.waitForTimeout(500);
+
+  // O badge fica vermelho e o texto da API aparece
+  await expect(page.locator('#api-badge')).toHaveClass(/fail/);
+  await expect(page.locator('#api-badge')).toContainText('Offline');
+});
+
 test('dark mode aplica variáveis escuras', async ({ page }) => {
   // Força prefers-color-scheme: dark
   await page.emulateMedia({ colorScheme: 'dark' });
