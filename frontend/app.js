@@ -220,9 +220,22 @@ async function loadProd() {
   tb.innerHTML = loadRow(7);
   try {
     const rows = await api('/api/produtos?' + pr);
-    _prodCache.clear();
-    rows.forEach(p => _prodCache.set(p.id, p));
-    _prodCacheTs = Date.now();
+
+    // Mantém o cache COMPLETO para os botões de ação (Editar/Movimentar/…):
+    // a busca retorna um subconjunto, mas o cache precisa de todos os produtos.
+    // Sem filtro, a resposta já é o conjunto completo — atualiza o cache direto.
+    if (!b && !c) {
+      _prodCache.clear();
+      rows.forEach(p => _prodCache.set(p.id, p));
+      _prodCacheTs = Date.now();
+    } else if (_prodCache.size === 0) {
+      // Cache vazio (primeira visita com filtro) → garante base completa
+      try {
+        const todos = await api('/api/produtos');
+        todos.forEach(p => _prodCache.set(p.id, p));
+        _prodCacheTs = Date.now();
+      } catch { /* segue com o filtrado */ }
+    }
 
     if (!rows.length) {
       tb.innerHTML = '<tr class="empty"><td colspan="7">Nenhum produto encontrado</td></tr>';
@@ -366,6 +379,8 @@ function abrirNovaMovimentacao() {
   document.getElementById('mn-mov-resp').value         = 'web';
   document.getElementById('mn-mov-pnome').textContent  = '';
   openModal('ov-mov-novo');
+  // Hook de extensão (preenchido pelo service-ui.js — popula o select)
+  if (typeof window.__extAbrirMovNovo === 'function') window.__extAbrirMovNovo();
 }
 
 async function onMovProdSelect() {
@@ -576,7 +591,8 @@ async function saveProd() {
 }
 
 async function delProd(id, nome) {
-  if (!confirm(`Inativar "${nome}"?`)) return;
+  const ok = await confirmar(`Inativar "${nome}"?`, 'Inativar produto');
+  if (!ok) return;
   try {
     await api(`/api/produtos/${id}`, { method: 'DELETE' });
     loadProd();
@@ -668,6 +684,8 @@ function openConfig() {
   document.getElementById('cfg-res').textContent   = '';
   document.getElementById('cfg-res').className     = 'tr-res';
   openModal('ov-cfg');
+  // Hook de extensão (preenchido pelo service-ui.js — evita monkey-patch)
+  if (typeof window.__extOpenConfig === 'function') window.__extOpenConfig();
 }
 
 async function testApi() {
@@ -692,6 +710,8 @@ function saveConfig() {
   const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
   if (!url) { toast('Informe a URL do backend.', 'error'); return; }
   setApiUrl(url);
+  // Hook de extensão (preenchido pelo service-ui.js — salva URLs do Grafana/Prom)
+  if (typeof window.__extSaveConfig === 'function') window.__extSaveConfig();
   closeModal('ov-cfg');
   location.reload();
 }
@@ -724,6 +744,33 @@ function toast(msg, tipo = 'info') {
     el.style.transition = 'opacity .3s';
     setTimeout(() => el.remove(), 300);
   }, 3500);
+}
+
+// ── Modal de confirmação (substitui confirm() — não bloqueante) ─────────────
+// Uso: const ok = await confirmar('Inativar "X"?', 'Inativar produto');
+//      if (!ok) return;  ...
+function confirmar(msg, titulo = 'Confirmar') {
+  return new Promise((resolve) => {
+    document.getElementById('cf-msg').textContent = msg;
+    document.getElementById('cf-title').textContent = titulo;
+    const btn = document.getElementById('cf-btn');
+
+    const finaliza = (ok) => {
+      btn.onclick = null;
+      document.getElementById('ov-confirm').classList.remove('open');
+      resolve(ok);
+    };
+
+    btn.onclick = () => finaliza(true);
+    // reusa o fechamento por fora/Esc → resolve false
+    const overlay = document.getElementById('ov-confirm');
+    const escHandler = (e) => {
+      if (e.key === 'Escape') { document.removeEventListener('keydown', escHandler); finaliza(false); }
+    };
+    document.addEventListener('keydown', escHandler);
+    openModal('ov-confirm');
+    btn.focus();
+  });
 }
 
 // ── Loading de botão (evita duplo clique e dá feedback de processamento) ───

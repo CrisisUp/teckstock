@@ -77,10 +77,12 @@ async function testAllServices() {
   ]);
 }
 
-// ── Overrides de config (carregado DEPOIS de app.js) ─────────────────────────
-const _origOpenConfig = openConfig;
-openConfig = function() {
-  _origOpenConfig();
+// ── Hooks de extensão (em vez de monkey-patches) ─────────────────────────────
+// O app.js chama window.__extX() se estiverem definidos. Aqui registramos
+// as extensões — sem sobrescrever funções (mais robusto que o padrão antigo).
+
+// Ao abrir o modal de config, preenche os campos de Grafana/Prometheus
+window.__extOpenConfig = () => {
   document.getElementById('cfg-graf-url').value         = getGrafUrl();
   document.getElementById('cfg-graf-atual').textContent = getGrafUrl() || '(não configurado)';
   document.getElementById('cfg-graf-res').textContent   = '';
@@ -91,16 +93,15 @@ openConfig = function() {
   document.getElementById('cfg-prom-res').className     = 'tr-res';
 };
 
-const _origSaveConfig = saveConfig;
-saveConfig = function() {
+// Ao salvar a config, persiste as URLs de Grafana/Prometheus
+window.__extSaveConfig = () => {
   const grafUrl = document.getElementById('cfg-graf-url').value.trim().replace(/\/$/, '');
   const promUrl = document.getElementById('cfg-prom-url').value.trim().replace(/\/$/, '');
   if (grafUrl) setGrafUrl(grafUrl);
   if (promUrl) setPromUrl(promUrl);
-  _origSaveConfig();
 };
 
-// ── Popula select de produtos no modal nova movimentação ─────────────────────
+// Popula o select de produtos no modal "Nova Movimentação"
 async function _populateMovNovoProdSel() {
   const sel = document.getElementById('mn-mov-psel');
   if (!sel || sel.dataset.loaded) return;
@@ -111,13 +112,7 @@ async function _populateMovNovoProdSel() {
     sel.dataset.loaded = '1';
   } catch { /* silencioso */ }
 }
-
-/* Override abrirNovaMovimentacao para popular select no momento certo */
-const _origAbrirNovaMov = abrirNovaMovimentacao;
-abrirNovaMovimentacao = async function() {
-  _origAbrirNovaMov();
-  await _populateMovNovoProdSel();
-};
+window.__extAbrirMovNovo = () => { _populateMovNovoProdSel(); };
 
 // ── Checks periódicos dos badges ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {

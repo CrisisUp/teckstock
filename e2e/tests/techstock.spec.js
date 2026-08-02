@@ -225,6 +225,41 @@ test('validação de estoque insuficiente mostra erro', async ({ page }) => {
   await expect(btnConfirmar).toContainText('Confirmar');
 });
 
+// ── Inativação (modal de confirmação) ────────────────────────────────────────
+test('inativa produto com modal de confirmação', async ({ page }) => {
+  // Cria um produto de teste para inativar (não usa os seeds)
+  const criar = await fetch('http://localhost:3000/api/produtos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codigo: 'E2E-DEL' + Date.now(), nome: `${PREFIX} Para Inativar`, quantidade: 1 }),
+  });
+  const criado = await criar.json();
+
+  await page.goto('/');
+  await page.getByRole('button', { name: /Produtos/ }).click();
+  await page.locator('#busca').fill(criado.nome);
+  await page.waitForTimeout(500);
+
+  // Clica no 🗑 (Inativar)
+  const row = page.locator('#prod-tb tr', { hasText: criado.nome });
+  await row.getByTitle('Inativar').click();
+
+  // O modal de confirmação aparece (não mais o confirm() nativo)
+  await expect(page.locator('#ov-confirm')).toHaveClass(/open/);
+  await expect(page.locator('#cf-title')).toContainText('Inativar');
+
+  // Cancela primeiro (modal fecha, produto continua)
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(page.locator('#ov-confirm')).not.toHaveClass(/open/);
+  await expect(page.locator('#prod-tb')).toContainText(criado.nome);
+
+  // Agora confirma (produto sai da lista)
+  await row.getByTitle('Inativar').click();
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await page.waitForTimeout(500);
+  await expect(page.locator('#prod-tb')).not.toContainText(criado.nome);
+});
+
 // ── Busca ────────────────────────────────────────────────────────────────────
 test('busca filtra produtos', async ({ page }) => {
   await page.goto('/');

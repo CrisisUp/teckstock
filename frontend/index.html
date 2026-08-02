@@ -217,6 +217,20 @@
   </div>
 </div>
 
+<!-- MODAL CONFIRMAÇÃO (genérico — usado por ações destrutivas) -->
+<div class="ov" id="ov-confirm" role="dialog" aria-modal="true" aria-label="Confirmação">
+  <div class="modal" style="max-width:400px">
+    <div class="mh"><h3 id="cf-title">Confirmar</h3><button class="mclose" onclick="closeModal('ov-confirm')">✕</button></div>
+    <div class="mb">
+      <div id="cf-msg" style="font-size:14px;color:var(--text)"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-o" onclick="closeModal('ov-confirm')">Cancelar</button>
+      <button class="btn btn-p" id="cf-btn" style="background:var(--red);color:#fff">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL HISTÓRICO -->
 <div class="ov" id="ov-hist" role="dialog" aria-modal="true" aria-label="Histórico de movimentos">
   <div class="modal" style="max-width:460px">
