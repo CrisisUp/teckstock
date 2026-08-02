@@ -9,11 +9,13 @@ resource "aws_vpc" "main" {
   }
 }
 
-# Definição das Zonas de Disponibilidade (hardcoded)
+# Definição das Zonas de Disponibilidade
+# Learner Lab não permite data source aws_availability_zones, então a lista é
+# fixa. O número de AZs USADO é controlado por var.az_count (default 2) —
+# evita criar subnets/NAT em excesso (3ª AZ sem uso = custo desperdiçado).
 locals {
-  # Para us-east-1 - ajuste para sua região
   availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
-  az_count          = length(local.availability_zones)
+  az_count           = min(length(local.availability_zones), var.az_count)
 }
 
 # Subnets Públicas (para ALB e NAT Gateway)
