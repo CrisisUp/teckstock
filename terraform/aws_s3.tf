@@ -1,4 +1,9 @@
 # Bucket S3 para o Frontend (Migração do desafio)
+# ⚠️ Learner Lab não suporta HTTPS/ACM, então NÃO usamos CloudFront+OAC aqui.
+# A melhor prática seria bucket 100% privado + CloudFront OAC (HTTPS, zero
+# exposição direta). Para o desafio, mantemos site estático com leitura pública
+# via policy, mas bloqueando ACLs/escrita anônima (ver public_access_block abaixo).
+# Em produção: migrar para CloudFront + OAC e remover esta policy.
 resource "aws_s3_bucket" "frontend" {
   bucket = "techstock-frontend-projeto-final-${random_string.suffix.result}"
 
@@ -19,13 +24,16 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
   }
 }
 
+# Endurecimento: bloqueia ACLs públicas e escrita anônima.
+# O bucket continua legível publicamente via policy (GetObject) — necessário
+# para o site estático — mas NINGUÉM pode fazer upload/overwrite sem ser o dono.
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = false   # policy GetObject pública (site estático)
+  ignore_public_acls      = true
+  restrict_public_buckets = false   # mantém a policy de leitura ativa
 }
 
 resource "aws_s3_bucket_policy" "public_read" {
