@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── 1. Testes do backend (unitários + integração com mock de pg) ──────────
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  # ── 2. Testes E2E (Playwright contra backend real + PostgreSQL) ────────────
+  e2e-tests:
+    name: E2E tests (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      # PostgreSQL real para os testes de UI
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: techstock
+          POSTGRES_USER: techstock_user
+          POSTGRES_PASSWORD: techstock_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U techstock_user"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Backend aponta para o container Postgres da CI
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: techstock
+      DB_USER: techstock_user
+      DB_PASSWORD: techstock_test
+      DB_SSL: "false"
+      CORS_ORIGIN: http://localhost:3000
+      NODE_ENV: test
+      TECHSTOCK_SECRET_NAME: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Setup backend
+        working-directory: backend
+        run: npm ci
+
+      - name: Apply database schema
+        working-directory: backend
+        env:
+          PGPASSWORD: techstock_test
+        run: |
+          # psql client no runner (mais simples que docker --network host)
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          psql -h 127.0.0.1 -U techstock_user -d techstock -f schema.sql
+
+      - name: Install E2E deps
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          node server.js &
+          # aguarda a API subir (health check)
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
+              echo "Backend pronto após ${i} tentativas"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://localhost:3000/api/health || { echo "Backend não subiu"; exit 1; }
+
+      - name: Run E2E tests
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Upload Playwright report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/test-results/
+          retention-days: 7
