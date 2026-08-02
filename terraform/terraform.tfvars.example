@@ -1,0 +1,11 @@
+# ── TechStock — terraform.tfvars.example ─────────────────────────────────────
+# Copie este arquivo para terraform.tfvars e preencha. NUNCA commite terraform.tfvars
+# (ele está no .gitignore — contém segredos).
+
+aws_region  = "us-east-1"
+environment = "dev"
+
+# ⚠️ Senha do RDS — obrigatória. Gere uma senha forte:
+#    openssl rand -base64 24   (ou use um gerador confiável)
+# Exemplos NUNCA usar: SenhaForte123!, TechStock@2024, 12345678
+db_password = "SUBSTITUA_POR_UMA_SENHA_FORTE"

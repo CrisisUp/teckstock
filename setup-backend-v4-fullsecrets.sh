@@ -245,28 +245,50 @@ read -p "Confirma e salva no Secrets Manager? (s/N): " CONFIRM
 echo ""
 echo "Salvando secret no Secrets Manager..."
 
-SECRET_JSON=$(python3 -c "
-import json
+# ⚠️ A senha e demais valores passam via variáveis de ambiente (os.environ),
+# NÃO expandidos na linha de comando do python — senão aparecem no `ps aux`
+# e em /proc/PID/cmdline durante a execução.
+SECRET_JSON=$(
+  DB_HOST="$DB_HOST" \
+  DB_PORT="$DB_PORT" \
+  DB_NAME="$DB_NAME" \
+  DB_USER="$DB_USER" \
+  DB_PASSWORD="$DB_PASSWORD" \
+  DB_POOL_MIN="$DB_POOL_MIN" \
+  DB_POOL_MAX="$DB_POOL_MAX" \
+  DB_SSL="$DB_SSL" \
+  PORT="$PORT" \
+  NODE_ENV="$NODE_ENV" \
+  CORS_ORIGIN="$CORS_ORIGIN" \
+  AWS_REGION="$AWS_REGION" \
+  APP_DIR="$APP_DIR" \
+  NODE_EXPORTER_VERSION="$NODE_EXPORTER_VERSION" \
+  GITHUB_RAW="$GITHUB_RAW" \
+  GITHUB_SUBDIR="$GITHUB_SUBDIR" \
+  TECHSTOCK_SECRET_NAME="$SECRET_NAME" \
+  python3 -c "
+import json, os
 print(json.dumps({
-  'DB_HOST':               '${DB_HOST}',
-  'DB_PORT':               '${DB_PORT}',
-  'DB_NAME':               '${DB_NAME}',
-  'DB_USER':               '${DB_USER}',
-  'DB_PASSWORD':           '${DB_PASSWORD}',
-  'DB_POOL_MIN':           '${DB_POOL_MIN}',
-  'DB_POOL_MAX':           '${DB_POOL_MAX}',
-  'DB_SSL':                '${DB_SSL}',
-  'PORT':                  '${PORT}',
-  'NODE_ENV':              '${NODE_ENV}',
-  'CORS_ORIGIN':           '${CORS_ORIGIN}',
-  'AWS_REGION':            '${AWS_REGION}',
-  'APP_DIR':               '${APP_DIR}',
-  'NODE_EXPORTER_VERSION': '${NODE_EXPORTER_VERSION}',
-  'GITHUB_RAW':            '${GITHUB_RAW}',
-  'GITHUB_SUBDIR':         '${GITHUB_SUBDIR}',
-  'TECHSTOCK_SECRET_NAME': '${SECRET_NAME}'
+  'DB_HOST':               os.environ['DB_HOST'],
+  'DB_PORT':               os.environ['DB_PORT'],
+  'DB_NAME':               os.environ['DB_NAME'],
+  'DB_USER':               os.environ['DB_USER'],
+  'DB_PASSWORD':           os.environ['DB_PASSWORD'],
+  'DB_POOL_MIN':           os.environ['DB_POOL_MIN'],
+  'DB_POOL_MAX':           os.environ['DB_POOL_MAX'],
+  'DB_SSL':                os.environ['DB_SSL'],
+  'PORT':                  os.environ['PORT'],
+  'NODE_ENV':              os.environ['NODE_ENV'],
+  'CORS_ORIGIN':           os.environ['CORS_ORIGIN'],
+  'AWS_REGION':            os.environ['AWS_REGION'],
+  'APP_DIR':               os.environ['APP_DIR'],
+  'NODE_EXPORTER_VERSION': os.environ['NODE_EXPORTER_VERSION'],
+  'GITHUB_RAW':            os.environ['GITHUB_RAW'],
+  'GITHUB_SUBDIR':         os.environ['GITHUB_SUBDIR'],
+  'TECHSTOCK_SECRET_NAME': os.environ['TECHSTOCK_SECRET_NAME']
 }))
 ")
+
 
 if [[ "$EXISTING" == "true" ]]; then
   aws secretsmanager put-secret-value \

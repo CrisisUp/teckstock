@@ -317,7 +317,7 @@ sudo bash setup-monitoring.sh
 |---|---|
 | DNS do ALB | techstock-alb-xxx.us-east-1.elb.amazonaws.com |
 | IP privado do Backend | 10.0.10.X (EC2 Backend → Private IPv4) |
-| Senha Grafana | (Enter para usar TechStock@2024) |
+| Senha Grafana | (Enter para usar SUA_SENHA_FORTE) |
 
 ### O que o script faz
 
@@ -348,7 +348,7 @@ sudo bash setup-monitoring.sh
 ### Validação
 
 ```bash
-curl -s http://localhost/grafana/api/health -u 'admin:TechStock@2024'
+curl -s http://localhost/grafana/api/health -u 'admin:SUA_SENHA_FORTE'
 curl -s http://localhost:9090/prometheus/api/v1/query?query=up
 sudo promtool check config /etc/prometheus/prometheus.yml
 ```
@@ -453,9 +453,9 @@ for svc in prometheus grafana-server nginx node_exporter; do
   echo "$svc: $(systemctl is-active $svc)"
 done
 curl -s http://localhost:9090/prometheus/api/v1/query?query=up
-curl -s http://localhost:3000/grafana/api/health -u 'admin:TechStock@2024'
+curl -s http://localhost:3000/grafana/api/health -u 'admin:SUA_SENHA_FORTE'
 
 # Verificar datasource Grafana
 curl -s http://localhost:3000/grafana/api/datasources \
-  -u 'admin:TechStock@2024' | python3 -m json.tool | grep -E '"uid"|"url"'
+  -u 'admin:SUA_SENHA_FORTE' | python3 -m json.tool | grep -E '"uid"|"url"'
 ```

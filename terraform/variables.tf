@@ -27,3 +27,14 @@ variable "project_name" {
   type        = string
   default     = "techstock"
 }
+
+# ── Segredos ─────────────────────────────────────────────────────────────────
+# ⚠️ NUNCA defina um default para db_password. O valor deve vir de:
+#   - Var de ambiente:  TF_VAR_db_password="..." terraform plan/apply
+#   - Arquivo .tfvars:  db_password = "..."  (nunca commitar)
+#   - CI/CD secret (GitHub Actions / GitLab CI, etc.)
+variable "db_password" {
+  description = "Senha do banco PostgreSQL RDS (NÃO commitar — use TF_VAR_db_password ou .tfvars)"
+  type        = string
+  sensitive   = true
+}

@@ -147,18 +147,29 @@ read -p "Confirma e salva no Secrets Manager? (s/N): " CONFIRM
 # ── Salva secret ──────────────────────────────────────────────────────────────
 echo ""
 echo "Salvando secret..."
-SECRET_JSON=$(python3 -c "
-import json
+# Valores passam via variáveis de ambiente (os.environ), não expandidos na
+# linha de comando do python — evita quebra por caracteres especiais no shell.
+SECRET_JSON=$(
+  ALB_DNS="$ALB_DNS" \
+  AWS_REGION="$AWS_REGION" \
+  WEBROOT="$WEBROOT" \
+  NODE_EXPORTER_VERSION="$NODE_EXPORTER_VERSION" \
+  GITHUB_RAW="$GITHUB_RAW" \
+  GITHUB_SUBDIR="$GITHUB_SUBDIR" \
+  TECHSTOCK_SECRET_NAME="$SECRET_NAME" \
+  python3 -c "
+import json, os
 print(json.dumps({
-  'ALB_DNS':               '${ALB_DNS}',
-  'AWS_REGION':            '${AWS_REGION}',
-  'WEBROOT':               '${WEBROOT}',
-  'NODE_EXPORTER_VERSION': '${NODE_EXPORTER_VERSION}',
-  'GITHUB_RAW':            '${GITHUB_RAW}',
-  'GITHUB_SUBDIR':         '${GITHUB_SUBDIR}',
-  'TECHSTOCK_SECRET_NAME': '${SECRET_NAME}'
+  'ALB_DNS':               os.environ['ALB_DNS'],
+  'AWS_REGION':            os.environ['AWS_REGION'],
+  'WEBROOT':               os.environ['WEBROOT'],
+  'NODE_EXPORTER_VERSION': os.environ['NODE_EXPORTER_VERSION'],
+  'GITHUB_RAW':            os.environ['GITHUB_RAW'],
+  'GITHUB_SUBDIR':         os.environ['GITHUB_SUBDIR'],
+  'TECHSTOCK_SECRET_NAME': os.environ['TECHSTOCK_SECRET_NAME']
 }))
 ")
+
 
 if [[ "$EXISTING" == "true" ]]; then
   aws secretsmanager put-secret-value \

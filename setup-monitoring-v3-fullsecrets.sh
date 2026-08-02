@@ -67,7 +67,7 @@ if [[ $SECRET_EXISTS -eq 0 && -n "$SECRET_JSON" ]]; then
 else
   echo "  ⚠ Secret não encontrado — será criado com novos valores."
   EXISTING=false
-  GRAFANA_PASSWORD="TechStock@2024"
+  GRAFANA_PASSWORD=""
   PROMETHEUS_VERSION="2.51.2"
   NODE_EXPORTER_VERSION="1.7.0"
   DATASOURCE_UID="PBFA97CFB590B2093"
@@ -93,12 +93,14 @@ echo ""
 
 prompt_field() {
   local label="$1" current="$2" secret="$3"
+  # echo >&2 + read </dev/tty: garante que o label aparece no terminal mesmo
+  # dentro de uma subshell $(...) — e que a entrada (inclusive -s) lê do TTY.
   if [[ "$secret" == "true" ]]; then
-    echo "  $label (Enter para manter):"
-    read -s -p "    → " result; echo ""
+    echo "  $label (Enter para manter):" >&2
+    read -s -p "    → " result </dev/tty; echo "" >&2
   else
-    echo "  $label (Enter para manter: ${current:-'(vazio)'}):"
-    read -p "    → " result
+    echo "  $label (Enter para manter: ${current:-'(vazio)'}):" >&2
+    read -p "    → " result </dev/tty
   fi
   echo "${result:-$current}"
 }
@@ -162,21 +164,35 @@ read -p "Confirma e salva no Secrets Manager? (s/N): " CONFIRM
 # ── Salva secret ──────────────────────────────────────────────────────────────
 echo ""
 echo "Salvando secret..."
-SECRET_JSON=$(python3 -c "
-import json
+# ⚠️ GRAFANA_PASSWORD passa via variável de ambiente, NÃO na linha de comando
+# do python — senão aparece no `ps aux` durante a execução.
+SECRET_JSON=$(
+  ALB_DNS="$ALB_DNS" \
+  BACKEND_PRIVATE_IP="$BACKEND_PRIVATE_IP" \
+  GRAFANA_PASSWORD="$GRAFANA_PASSWORD" \
+  PROMETHEUS_VERSION="$PROMETHEUS_VERSION" \
+  NODE_EXPORTER_VERSION="$NODE_EXPORTER_VERSION" \
+  DATASOURCE_UID="$DATASOURCE_UID" \
+  AWS_REGION="$AWS_REGION" \
+  GITHUB_RAW="$GITHUB_RAW" \
+  GITHUB_SUBDIR="$GITHUB_SUBDIR" \
+  TECHSTOCK_SECRET_NAME="$SECRET_NAME" \
+  python3 -c "
+import json, os
 print(json.dumps({
-  'ALB_DNS':               '${ALB_DNS}',
-  'BACKEND_PRIVATE_IP':    '${BACKEND_PRIVATE_IP}',
-  'GRAFANA_PASSWORD':      '${GRAFANA_PASSWORD}',
-  'PROMETHEUS_VERSION':    '${PROMETHEUS_VERSION}',
-  'NODE_EXPORTER_VERSION': '${NODE_EXPORTER_VERSION}',
-  'DATASOURCE_UID':        '${DATASOURCE_UID}',
-  'AWS_REGION':            '${AWS_REGION}',
-  'GITHUB_RAW':            '${GITHUB_RAW}',
-  'GITHUB_SUBDIR':         '${GITHUB_SUBDIR}',
-  'TECHSTOCK_SECRET_NAME': '${SECRET_NAME}'
+  'ALB_DNS':               os.environ['ALB_DNS'],
+  'BACKEND_PRIVATE_IP':    os.environ['BACKEND_PRIVATE_IP'],
+  'GRAFANA_PASSWORD':      os.environ['GRAFANA_PASSWORD'],
+  'PROMETHEUS_VERSION':    os.environ['PROMETHEUS_VERSION'],
+  'NODE_EXPORTER_VERSION': os.environ['NODE_EXPORTER_VERSION'],
+  'DATASOURCE_UID':        os.environ['DATASOURCE_UID'],
+  'AWS_REGION':            os.environ['AWS_REGION'],
+  'GITHUB_RAW':            os.environ['GITHUB_RAW'],
+  'GITHUB_SUBDIR':         os.environ['GITHUB_SUBDIR'],
+  'TECHSTOCK_SECRET_NAME': os.environ['TECHSTOCK_SECRET_NAME']
 }))
 ")
+
 
 if [[ "$EXISTING" == "true" ]]; then
   aws secretsmanager put-secret-value \

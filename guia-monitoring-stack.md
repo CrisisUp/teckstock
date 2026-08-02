@@ -51,7 +51,7 @@ EC2 Monitoring (subnet privada)
 ```bash
 BACKEND_PRIVATE_IP="10.0.10.XX"   # IP privado do EC2 Backend
 ALB_DNS="techstock-alb-XXXX.us-east-1.elb.amazonaws.com"  # sem http://
-GRAFANA_PASSWORD="TechStock@2024"
+GRAFANA_PASSWORD="SUA_SENHA_FORTE"
 ```
 
 > ⚠️ `ALB_DNS` é obrigatório. O script falha se não for preenchido.
@@ -212,7 +212,7 @@ serve_from_sub_path = true
 
 [security]
 admin_user     = admin
-admin_password = TechStock@2024
+admin_password = SUA_SENHA_FORTE
 secret_key     = techstock-TIMESTAMP
 allow_embedding = true
 cookie_secure   = false
@@ -231,7 +231,7 @@ sudo grafana-cli \
   --homepath /usr/share/grafana \
   --config /etc/grafana/grafana.ini \
   --configOverrides 'cfg:default.paths.data=/var/lib/grafana' \
-  admin reset-admin-password TechStock@2024
+  admin reset-admin-password SUA_SENHA_FORTE
 
 sudo systemctl restart grafana-server
 ```
@@ -255,11 +255,11 @@ Os dashboards JSON TechStock têm esse UID hardcoded. O script cria o datasource
 ```bash
 # Remove datasource existente
 curl -X DELETE 'http://localhost:3000/grafana/api/datasources/uid/SEU_UID_ATUAL' \
-  -u 'admin:TechStock@2024'
+  -u 'admin:SUA_SENHA_FORTE'
 
 # Cria com UID e URL corretos
 curl -X POST 'http://localhost:3000/grafana/api/datasources' \
-  -u 'admin:TechStock@2024' \
+  -u 'admin:SUA_SENHA_FORTE' \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "Prometheus",
@@ -272,7 +272,7 @@ curl -X POST 'http://localhost:3000/grafana/api/datasources' \
 
 # Verifica
 curl -s 'http://localhost:3000/grafana/api/datasources' \
-  -u 'admin:TechStock@2024' | python3 -m json.tool | grep -E '"uid"|"url"'
+  -u 'admin:SUA_SENHA_FORTE' | python3 -m json.tool | grep -E '"uid"|"url"'
 ```
 
 > ⚠️ O path da API é `/grafana/api/...` quando `serve_from_sub_path = true`.
@@ -338,7 +338,7 @@ for f in \
 
   echo "Importando $f..."
   curl -s -X POST http://localhost:3000/grafana/api/dashboards/db \
-    -u 'admin:TechStock@2024' \
+    -u 'admin:SUA_SENHA_FORTE' \
     -H 'Content-Type: application/json' \
     -d @$f \
     | python3 -c "
@@ -356,7 +356,7 @@ done
 
 ```bash
 curl -s 'http://localhost:3000/grafana/api/search?type=dash-db' \
-  -u 'admin:TechStock@2024' \
+  -u 'admin:SUA_SENHA_FORTE' \
   | python3 -c "
 import sys, json
 for d in json.load(sys.stdin):
@@ -486,7 +486,7 @@ curl -s http://SEU_ALB/grafana/api/health
 
 # Datasources configurados
 curl -s http://localhost:3000/grafana/api/datasources \
-  -u 'admin:TechStock@2024' | python3 -m json.tool | grep -E '"uid"|"url"|"name"'
+  -u 'admin:SUA_SENHA_FORTE' | python3 -m json.tool | grep -E '"uid"|"url"|"name"'
 
 # Logs Grafana
 journalctl -u grafana-server --since "10 minutes ago" | grep -E 'error|warn' | tail -20
