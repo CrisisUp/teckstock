@@ -278,6 +278,111 @@ async function bootstrap() {
       ORDER  BY p.nome
     `, params);
     res.json(rows);
+});
+
+  // ── Export CSV (produtos) ──────────────────────────────────────────────────
+  app.get('/api/export/produtos', async (req, res) => {
+    const { busca, categoria_id, alerta } = req.query;
+    const params = [];
+    const where  = ['p.ativo = TRUE'];
+
+    if (busca) {
+      params.push(`%${busca}%`);
+      where.push(`(p.nome ILIKE $${params.length} OR p.codigo ILIKE $${params.length} OR p.localizacao ILIKE $${params.length})`);
+    }
+    if (categoria_id) {
+      params.push(parseId(categoria_id, 'categoria_id'));
+      where.push(`p.categoria_id = $${params.length}`);
+    }
+    if (alerta === '1') {
+      where.push('p.quantidade <= p.qtd_minima');
+    }
+    const whereSql = where.join(' AND ');
+
+    // Busca todos os produtos (sem paginação para exportar tudo)
+    const { rows } = await q(`
+      SELECT p.codigo, p.nome, p.descricao, p.categoria_id,
+             c.nome AS categoria_nome, c.cor AS categoria_cor,
+             p.unidade, p.quantidade, p.qtd_minima, p.preco_custo, p.localizacao
+      FROM   produtos p
+      LEFT   JOIN categorias c ON c.id = p.categoria_id
+      WHERE  ${whereSql}
+      ORDER  BY p.nome
+    `, params);
+
+    // Monta CSV com ';' + BOM UTF-8 (Excel pt-BR)
+    const cabecalho = ['Código', 'Nome', 'Descrição', 'Categoria', 'Cor', 'Unidade', 'Quantidade', 'Qtd Mínima', 'Preço Custo', 'Localização'];
+    const linhas = [['Código', 'Nome', 'Descrição', 'Categoria', 'Cor', 'Unidade', 'Quantidade', 'Qtd Mínima', 'Preço Custo', 'Localização']];
+    for (const p of rows) {
+      linhas.push([
+        p.codigo,
+        p.nome,
+        p.descricao || '',
+        p.categoria_nome || '',
+        p.categoria_cor || '',
+        p.unidade,
+        p.quantidade,
+        p.qtd_minima,
+        p.preco_custo,
+        p.localizacao || ''
+      ]);
+    }
+
+    const csv = '﻿' + linhas.map(l => l.join(';')).join('\r\n');
+
+    res.setHeader('Content-Type', 'text/csv;charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="techstock-produtos-${new Date().toISOString().slice(0,10)}.csv"`);
+    res.send(csv);
+  });
+
+  // ── Export CSV (movimentos) ────────────────────────────────────────────────
+  app.get('/api/export/movimentos', async (req, res) => {
+    const { tipo, produto_id, categoria_id } = req.query;
+    const params = [];
+    const where  = ['1=1'];
+
+    if (tipo) {
+      params.push(tipo);
+      where.push(`m.tipo = $${params.length}`);
+    }
+    if (produto_id) {
+      params.push(parseId(produto_id, 'produto_id'));
+      where.push(`m.produto_id = $${params.length}`);
+    }
+    if (categoria_id) {
+      params.push(parseId(categoria_id, 'categoria_id'));
+      where.push(`p.categoria_id = $${params.length}`);
+    }
+    const whereSql = where.join(' AND ');
+
+    const { rows } = await q(`
+      SELECT m.criado_em, m.tipo, p.nome AS produto_nome, m.quantidade,
+             m.quantidade_anterior, m.quantidade_nova, m.motivo, m.responsavel
+      FROM   movimentos m
+      LEFT   JOIN produtos p ON p.id = m.produto_id
+      WHERE  ${whereSql}
+      ORDER  BY m.criado_em DESC
+    `, params);
+
+    const linhas = [['Data', 'Tipo', 'Produto', 'Quantidade', 'Qtd Anterior', 'Qtd Nova', 'Motivo', 'Responsável']];
+    for (const m of rows) {
+      linhas.push([
+        new Date(m.criado_em).toLocaleString('pt-BR'),
+        m.tipo,
+        m.produto_nome || m.produto_id,
+        m.quantidade,
+        m.quantidade_anterior,
+        m.quantidade_nova,
+        m.motivo || '',
+        m.responsavel || ''
+      ]);
+    }
+
+    const csv = '﻿' + linhas.map(l => l.join(';')).join('\r\n');
+
+    res.setHeader('Content-Type', 'text/csv;charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="techstock-movimentos-${new Date().toISOString().slice(0,10)}.csv"`);
+    res.send(csv);
   });
 
   app.get('/api/produtos/:id', async (req, res) => {
