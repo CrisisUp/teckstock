@@ -1,0 +1,44 @@
+# ── Node.js ──────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Terraform ────────────────────────────────────────────────────────────────
+# Diretórios e estado NÃO devem ir pro git (contêm dados sensíveis de infra)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+# (terraform/.terraform.lock.hcl e os .tf são versionados — NÃO ignorar)
+
+# ── Segredos & credenciais ──────────────────────────────────────────────────
+# Nunca commitar .env real (apenas .env.example é versionado)
+.env
+.env.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.id_rsa
+*.id_ed25519
+.aws/
+
+# ── Arquivos gerados em deploy ───────────────────────────────────────────────
+# config.js é criado pelo setup-frontend.sh com a URL do ALB (conteúdo varia)
+frontend/config.js
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+
+# ── IDE / Editor ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Sistema operacional ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -70,3 +70,12 @@ INSERT INTO produtos (codigo, nome, descricao, categoria_id, unidade, quantidade
   ('LI-001', 'Álcool 70% 1L',       'Álcool isopropílico 1 litro', 5, 'un',  20, 10,  9.50, 'E1-01'),
   ('LI-002', 'Papel toalha cx',      'Caixa c/ 1000 folhas',        5, 'cx',   4, 10, 34.00, 'E1-02')
 ON CONFLICT (codigo) DO NOTHING;
+
+CREATE INDEX idx_produtos_codigo
+ON produtos(codigo);
+
+CREATE INDEX idx_produtos_categoria
+ON produtos(categoria_id);
+
+CREATE INDEX idx_movimentos_produto
+ON movimentos(produto_id);

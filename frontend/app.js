@@ -20,10 +20,24 @@ function setApiUrl(url) {
 async function api(path, opts = {}) {
   const base = getApiUrl();
   if (!base) throw new Error('Backend não configurado. Clique em ⚙ para configurar.');
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(opts.headers || {})
+  };
+
+  // Suporte a API Key: Se houver uma chave salva, injeta automaticamente nas requisições
+  const localApiKey = localStorage.getItem('techstock_api_key');
+  if (localApiKey) {
+    headers['x-api-key'] = localApiKey;
+  }
+
   const res = await fetch(base + path, {
-    headers: { 'Content-Type': 'application/json', ...opts.headers },
     ...opts,
+    headers,
+    signal: AbortSignal.timeout(10000)    
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || `HTTP ${res.status}`);
@@ -289,7 +303,7 @@ async function _fetchMovs() {
                   :                        `→${m.quantidade_nova ?? m.quantidade}`;
       const cls = m.tipo === 'entrada' ? 'pos' : m.tipo === 'saida' ? 'neg' : '';
       const dt  = new Date(m.criado_em).toLocaleString('pt-BR');
-      // nome do produto: tenta campo da API, depois busca no cache
+      
       const pNome = m.produto_nome
         || (_prodCache.get(Number(m.produto_id))?.nome)
         || String(m.produto_id || '—');
@@ -307,12 +321,10 @@ async function _fetchMovs() {
 
   try {
     if (prodId) {
-      // Produto selecionado — rota direta
       const rows = await api(`/api/movimentos/${prodId}`);
       renderRows(rows);
     } else {
-      // Sem filtro — busca movimentos de todos os produtos em paralelo
-      // Garante que o cache de produtos está populado
+      // CORREÇÃO: Popula o cache caso o usuário entre direto nesta aba
       if (!_prodCache.size) {
         const prods = await api('/api/produtos');
         prods.forEach(p => _prodCache.set(p.id, p));
