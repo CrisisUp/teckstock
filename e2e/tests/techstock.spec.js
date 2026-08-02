@@ -292,6 +292,26 @@ test('erro de rede mostra mensagem amigável (F23)', async ({ page }) => {
   await expect(page.locator('#api-badge')).toContainText('Offline');
 });
 
+// ── Paginação (F25) ──────────────────────────────────────────────────────────
+test('API de produtos suporta paginação (limite/offset/total)', async ({ request }) => {
+  const r1 = await request.get('/api/produtos?limite=3&offset=0');
+  const j1 = await r1.json();
+  expect(j1.rows).toHaveLength(3);
+  expect(j1.total).toBeGreaterThanOrEqual(11);
+
+  // Página 2 não repete a primeira
+  const r2 = await request.get('/api/produtos?limite=3&offset=3');
+  const j2 = await r2.json();
+  const ids1 = new Set(j1.rows.map((p) => p.id));
+  const repetidos = j2.rows.filter((p) => ids1.has(p.id));
+  expect(repetidos).toHaveLength(0);
+
+  // Sem limite → mantém array simples (compatibilidade)
+  const rAll = await request.get('/api/produtos');
+  const all = await rAll.json();
+  expect(Array.isArray(all)).toBe(true);
+});
+
 test('dark mode aplica variáveis escuras', async ({ page }) => {
   // Força prefers-color-scheme: dark
   await page.emulateMedia({ colorScheme: 'dark' });

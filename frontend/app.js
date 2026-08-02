@@ -199,6 +199,10 @@ async function loadDash() {
       <td>${qBar(p.quantidade, p.qtd_minima)}</td>
     </tr>`).join('');
   } catch (e) {
+    // Limpa os skeletons e mostra "—" (a API falhou)
+    ['s-total', 's-alert', 's-mov', 's-valor'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
     document.getElementById('dash-tb').innerHTML = errRow(5, e.message);
   }
 }
@@ -225,22 +229,61 @@ async function loadCats() {
 // ══════════════════════════════════════════════════════════════════════════════
 // PRODUTOS
 // ══════════════════════════════════════════════════════════════════════════════
+let _pg = { offset: 0, limite: 50 };   // estado da paginação de produtos (F25)
+
+// Navega na paginação (delta = -1 | 1)
+async function loadProdPg(delta) {
+  _pg.offset = Math.max(_pg.offset + delta * _pg.limite, 0);
+  await loadProd();
+}
+
+// Busca/filtro: reseta para a página 1 (evita navegar "fora do resultado")
+function buscarProd() {
+  _pg.offset = 0;
+  loadProd();
+}
+
+// Atualiza os controles de paginação (visibilidade, info, estado dos botões)
+function atualizarPag(total) {
+  const pg = document.getElementById('prod-pg');
+  if (!pg) return;
+  const temPagina = total > _pg.limite;
+  pg.style.display = temPagina ? 'flex' : 'none';
+  if (!temPagina) return;
+
+  const pagina = Math.floor(_pg.offset / _pg.limite) + 1;
+  const ultima = Math.max(Math.ceil(total / _pg.limite), 1);
+  document.getElementById('pg-info').textContent = `Página ${pagina} de ${ultima}`;
+  document.getElementById('pg-prev').disabled = _pg.offset <= 0;
+  document.getElementById('pg-next').disabled = _pg.offset + _pg.limite >= total;
+}
+
 async function loadProd() {
   const pr = new URLSearchParams();
   const b  = document.getElementById('busca').value;
   const c  = document.getElementById('f-cat').value;
   if (b) pr.set('busca', b);
   if (c) pr.set('categoria_id', c);
+  pr.set('limite', _pg.limite);
+  pr.set('offset', _pg.offset);
 
   const tb = document.getElementById('prod-tb');
   tb.innerHTML = loadRow(7);
   try {
-    const rows = await api('/api/produtos?' + pr);
+    // Com limite, a API retorna { rows, total } (paginação)
+    const resp = await api('/api/produtos?' + pr);
+    const rows = Array.isArray(resp) ? resp : resp.rows;
+    const total = Array.isArray(resp) ? rows.length : resp.total;
+
+    // Contador de produtos (F29) + paginação (F25)
+    const pc = document.getElementById('prod-count');
+    if (pc) pc.textContent = `${total} produto(s)`;
+    atualizarPag(total);
 
     // Mantém o cache COMPLETO para os botões de ação (Editar/Movimentar/…):
     // a busca retorna um subconjunto, mas o cache precisa de todos os produtos.
     // Sem filtro, a resposta já é o conjunto completo — atualiza o cache direto.
-    if (!b && !c) {
+    if (!b && !c && total <= _pg.limite) {
       _prodCache.clear();
       rows.forEach(p => _prodCache.set(p.id, p));
       _prodCacheTs = Date.now();

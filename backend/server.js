@@ -233,7 +233,7 @@ async function bootstrap() {
 
   // ── Produtos ────────────────────────────────────────────────────────────────
   app.get('/api/produtos', async (req, res) => {
-    const { busca, categoria_id, alerta } = req.query;
+    const { busca, categoria_id, alerta, limite, offset } = req.query;
     const params = [];
     const where  = ['p.ativo = TRUE'];
 
@@ -248,12 +248,33 @@ async function bootstrap() {
     if (alerta === '1') {
       where.push('p.quantidade <= p.qtd_minima');
     }
+    const whereSql = where.join(' AND ');
+
+    // Paginação opcional: se limite for passado, retorna { rows, total }.
+    // Sem limite, mantém o comportamento original (lista simples).
+    if (limite !== undefined) {
+      const lim  = Math.min(Math.max(Number(limite) || 50, 1), 500);
+      const off  = Math.max(Number(offset) || 0, 0);
+      const countParams = [...params];
+      const { rows: [{ n: total }] } = await q(
+        `SELECT COUNT(*) AS n FROM produtos p WHERE ${whereSql}`, countParams
+      );
+      const { rows } = await q(`
+        SELECT p.*, c.nome AS categoria_nome, c.cor AS categoria_cor
+        FROM   produtos p
+        LEFT   JOIN categorias c ON c.id = p.categoria_id
+        WHERE  ${whereSql}
+        ORDER  BY p.nome
+        LIMIT  ${lim} OFFSET ${off}
+      `, params);
+      return res.json({ rows, total: Number(total) });
+    }
 
     const { rows } = await q(`
       SELECT p.*, c.nome AS categoria_nome, c.cor AS categoria_cor
       FROM   produtos p
       LEFT   JOIN categorias c ON c.id = p.categoria_id
-      WHERE  ${where.join(' AND ')}
+      WHERE  ${whereSql}
       ORDER  BY p.nome
     `, params);
     res.json(rows);

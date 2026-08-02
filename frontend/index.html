@@ -32,10 +32,10 @@
 <!-- DASHBOARD -->
 <div class="page active" id="page-dashboard">
   <div class="cards">
-    <div class="card"><div class="card-icon">📦</div><div class="card-label">Total Produtos</div><div class="card-value" id="s-total">—</div></div>
-    <div class="card"><div class="card-icon">⚠️</div><div class="card-label">Alertas</div><div class="card-value warn" id="s-alert">—</div></div>
-    <div class="card"><div class="card-icon">💰</div><div class="card-label">Valor em Estoque</div><div class="card-value ok" id="s-valor">—</div></div>
-    <div class="card"><div class="card-icon">🔄</div><div class="card-label">Mov. 24h</div><div class="card-value" id="s-mov">—</div></div>
+    <div class="card"><div class="card-icon">📦</div><div class="card-label">Total Produtos</div><div class="card-value" id="s-total"><span class="skeleton"></span></div></div>
+    <div class="card"><div class="card-icon">⚠️</div><div class="card-label">Alertas</div><div class="card-value warn" id="s-alert"><span class="skeleton"></span></div></div>
+    <div class="card"><div class="card-icon">💰</div><div class="card-label">Valor em Estoque</div><div class="card-value ok" id="s-valor"><span class="skeleton"></span></div></div>
+    <div class="card"><div class="card-icon">🔄</div><div class="card-label">Mov. 24h</div><div class="card-value" id="s-mov"><span class="skeleton"></span></div></div>
   </div>
   <div class="banner hidden" id="banner">⚠️ <span id="banner-txt"></span><button class="btn btn-sm btn-o ml-auto" onclick="showPage('alertas')">Ver alertas</button></div>
   <div class="tw">
@@ -51,13 +51,19 @@
     <div class="th">
       <h2>Produtos</h2>
       <div class="ta">
-        <input class="inp inp-w" id="busca" placeholder="🔍 Nome ou código..." oninput="debounce(loadProd,400)()" maxlength="100">
-        <select class="inp" id="f-cat" onchange="loadProd()"><option value="">Todas categorias</option></select>
+        <input class="inp inp-w" id="busca" placeholder="🔍 Nome ou código..." oninput="debounce(buscarProd,400)()" maxlength="100">
+        <select class="inp" id="f-cat" onchange="buscarProd()"><option value="">Todas categorias</option></select>
         <button class="btn btn-p" onclick="openNovo()">+ Novo</button>
+        <span id="prod-count" class="mov-count" style="margin:0"></span>
       </div>
     </div>
     <table><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Local</th><th>Estoque</th><th>Custo</th><th>Ações</th></tr></thead>
     <tbody id="prod-tb"><tr class="empty"><td colspan="7"><span class="spin"></span>Carregando...</td></tr></tbody></table>
+    <div class="pagination" id="prod-pg" style="display:none">
+      <button type="button" class="btn btn-o btn-sm" id="pg-prev" onclick="loadProdPg(-1)">◀ Anterior</button>
+      <span id="pg-info" class="muted-sm"></span>
+      <button type="button" class="btn btn-o btn-sm" id="pg-next" onclick="loadProdPg(1)">Próxima ▶</button>
+    </div>
   </div>
 </div>
 
@@ -116,7 +122,8 @@
 <!-- MODAL PRODUTO -->
 <div class="ov" id="ov-prod" role="dialog" aria-modal="true" aria-label="Cadastro de produto">
   <div class="modal">
-    <div class="mh"><h3 id="m-prod-title">Novo Produto</h3><button class="mclose" onclick="closeModal('ov-prod')">✕</button></div>
+    <form onsubmit="saveProd(); return false;" autocomplete="off">
+    <div class="mh"><h3 id="m-prod-title">Novo Produto</h3><button type="button" class="mclose" onclick="closeModal('ov-prod')">✕</button></div>
     <div class="mb">
       <input type="hidden" id="p-id">
       <div class="fr">
@@ -151,16 +158,18 @@
       <div class="fg"><label>Preço de Custo (R$)</label><input class="inp" type="number" id="p-custo" value="0" step="0.01" min="0" max="10000000"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-o" onclick="closeModal('ov-prod')">Cancelar</button>
-      <button class="btn btn-p" onclick="saveProd()">💾 Salvar</button>
+      <button type="button" class="btn btn-o" onclick="closeModal('ov-prod')">Cancelar</button>
+      <button type="submit" class="btn btn-p">💾 Salvar</button>
     </div>
+    </form>
   </div>
 </div>
 
 <!-- MODAL MOVIMENTAÇÃO RÁPIDA (via botão ↕ na tabela de produtos) -->
 <div class="ov" id="ov-mov" role="dialog" aria-modal="true" aria-label="Movimentar estoque">
   <div class="modal">
-    <div class="mh"><h3>Movimentar Estoque</h3><button class="mclose" onclick="closeModal('ov-mov')">✕</button></div>
+    <form onsubmit="saveMov(); return false;" autocomplete="off">
+    <div class="mh"><h3>Movimentar Estoque</h3><button type="button" class="mclose" onclick="closeModal('ov-mov')">✕</button></div>
     <div class="mb">
       <input type="hidden" id="m-pid">
       <div class="fg"><label>Produto</label><div id="m-pnome" class="pnome-txt"></div></div>
@@ -178,16 +187,18 @@
       <div class="fg"><label>Responsável</label><input class="inp" id="m-resp" value="web" placeholder="Nome ou matrícula" maxlength="80"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-o" onclick="closeModal('ov-mov')">Cancelar</button>
-      <button class="btn btn-p" onclick="saveMov()">✅ Confirmar</button>
+      <button type="button" class="btn btn-o" onclick="closeModal('ov-mov')">Cancelar</button>
+      <button type="submit" class="btn btn-p">✅ Confirmar</button>
     </div>
+    </form>
   </div>
 </div>
 
 <!-- MODAL NOVA MOVIMENTAÇÃO (via página Movimentações) -->
 <div class="ov" id="ov-mov-novo" role="dialog" aria-modal="true" aria-label="Nova movimentação">
   <div class="modal">
-    <div class="mh"><h3>🔄 Nova Movimentação</h3><button class="mclose" onclick="closeModal('ov-mov-novo')">✕</button></div>
+    <form onsubmit="saveMovNovo(); return false;" autocomplete="off">
+    <div class="mh"><h3>🔄 Nova Movimentação</h3><button type="button" class="mclose" onclick="closeModal('ov-mov-novo')">✕</button></div>
     <div class="mb">
       <input type="hidden" id="mn-mov-pid">
       <div class="fg">
@@ -211,9 +222,10 @@
       <div class="fg"><label>Responsável</label><input class="inp" id="mn-mov-resp" value="web" placeholder="Nome ou matrícula" maxlength="80"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-o" onclick="closeModal('ov-mov-novo')">Cancelar</button>
-      <button class="btn btn-p" onclick="saveMovNovo()">✅ Confirmar</button>
+      <button type="button" class="btn btn-o" onclick="closeModal('ov-mov-novo')">Cancelar</button>
+      <button type="submit" class="btn btn-p">✅ Confirmar</button>
     </div>
+    </form>
   </div>
 </div>
 
